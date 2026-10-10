@@ -1,0 +1,28 @@
+{
+  "package_id": "org.dotsbridgekit.g2.phone",
+  "edition": "202601",
+  "name": "Dots Phone G2",
+  "version": "0.2.25",
+  "min_app_version": "2.2.10",
+  "min_sdk_version": "0.0.15",
+  "entrypoint": "index.html",
+  "tagline": "Your dot on a call, with Even G2.",
+  "description": "Switch between Dot phone calls and speech-to-text messaging, view text replies and browse message history with Even G2.",
+  "author": "Dots Bridge Kit contributors",
+  "supported_languages": [
+    "ja"
+  ],
+  "permissions": [
+    {
+      "name": "g2-microphone",
+      "desc": "Use the Even G2 microphone while you hold to talk."
+    },
+    {
+      "name": "network",
+      "desc": "Connect to your paired Dots Bridge Kit.",
+      "whitelist": [
+        "ws://127.0.0.1:8799"
+      ]
+    }
+  ]
+}

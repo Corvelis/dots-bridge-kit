@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dots Voice Bridge</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10151b;color:#e8eef4}*{box-sizing:border-box}body{margin:0;padding:28px 20px}main{max-width:680px;margin:auto}h1{font-size:27px;margin:0 0 8px}p{line-height:1.65;color:#aebdca}section{background:#19232c;border:1px solid #30424f;border-radius:16px;padding:20px;margin-top:20px}label{display:block;margin:16px 0 7px;font-size:14px}input,select,button{font:inherit;border-radius:9px;border:1px solid #415564;padding:12px;width:100%;background:#111c24;color:#e8eef4}button{cursor:pointer;background:#315a71;font-weight:600;margin-top:12px}button:disabled{opacity:.4;cursor:default}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}#ptt{min-height:85px;background:#235e54;touch-action:none;user-select:none}#ptt.held{background:#bd7540}#status{color:#89d6be;font-weight:600}#log{min-height:75px;max-height:200px;overflow:auto;font-size:13px;white-space:pre-wrap}small{display:block;line-height:1.6;color:#aebdca;margin-top:12px}output{font-variant-numeric:tabular-nums;font-size:13px;color:#aebdca}@media(max-width:430px){body{padding:20px 14px}.row{grid-template-columns:1fr}}
+</style></head>
+<body><main><h1>Dots Voice Bridge</h1><p>いつものdotと、外部マイク・スピーカーで通話します。</p>
+<section><div id="status" role="status">未接続</div><label for="token">ブリッジのペアリングトークン</label><input id="token" type="password" autocomplete="off" spellcheck="false"><button id="connect">接続・音声を有効化</button><small>トークンはこの画面のメモリだけで使用します。</small></section>
+<section><div class="row"><button id="start" disabled>通話を開始</button><button id="stop" disabled>通話を終了・入力を復元</button></div></section>
+<section><label for="microphone">入力マイク</label><select id="microphone" disabled><option value="">接続時に取得します</option></select><button id="ptt" disabled>押している間だけ話す</button><small id="mic-note">localhost、またはHTTPSでこの画面を開くと、ブラウザのマイクを使用できます。外部アプリはWebSocketへ音声を直接送れます。</small><output id="stats">入力 0 B · 出力 0 B</output></section>
+<section><div id="log" role="log">Macで既存dotのChromeウインドウを開いておいてください。</div></section>
+</main><script type="module" src="/client.js"></script></body></html>

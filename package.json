@@ -1,0 +1,51 @@
+{
+  "name": "dots-bridge-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A configurable Chrome, macOS and Even G2 bridge for your existing Dot.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "chrome:install": "node scripts/chrome-host.mjs install",
+    "chrome:uninstall": "node scripts/chrome-host.mjs uninstall",
+    "token": "node scripts/token.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "build": "npm run typecheck && npm run build:bridge && npm run build:g2",
+    "build:bridge": "tsup",
+    "build:g2": "vite build --config vite.dots-phone-g2.config.ts",
+    "build:native": "node scripts/build-native.mjs",
+    "pack:g2": "node scripts/pack-g2.mjs",
+    "dev:g2": "vite --config vite.dots-phone-g2.config.ts",
+    "start": "node scripts/start.mjs",
+    "services:start": "node scripts/services.mjs start",
+    "services:stop": "node scripts/services.mjs stop",
+    "services:status": "node scripts/services.mjs status",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "release:check": "node scripts/release-check.mjs",
+    "release:zip": "node scripts/release-zip.mjs",
+    "release:stage": "node scripts/release-stage.mjs",
+    "release:runtime": "node scripts/release-runtime.mjs",
+    "release:all": "npm run release:stage && npm run release:zip && npm run release:runtime && node scripts/release-checksums.mjs"
+  },
+  "dependencies": {
+    "@evenrealities/even_hub_sdk": "0.0.15",
+    "@evenrealities/evenhub-cli": "0.1.13",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/ws": "8.18.1",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "5.0.3"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
+  }
+}

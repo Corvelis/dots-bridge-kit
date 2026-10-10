@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title"><title id="title">G2表示と初期配置の操作。ASR確認中は左右またはR1の長押しで送信、2タップで破棄。画面は説明用の表示例</title><style>text{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans",sans-serif;fill:#20302a} .muted{fill:#62736b} .title{font-size:24px;font-weight:700}.body{font-size:17px}.small{font-size:14px}.mono{font-family:ui-monospace,monospace}.card{fill:#fff;stroke:#ccdbd2;stroke-width:2}.accent{fill:#166f50}</style><rect width="960" height="540" rx="20" fill="#f3f7f4"/>
+<text x="32" y="44" class="title">G2の表示と、左右の操作</text>
+<text x="32" y="74" class="body muted">初期配置：左が通常操作／右が表示とモードの操作</text>
+<rect x="184" y="102" width="592" height="220" rx="20" fill="#152a1e"/>
+<text x="647" y="130" style="fill:#b5ff82;font-size:16px">14:00　78%</text>
+<circle cx="265" cy="190" r="43" fill="#b5ff82"/><ellipse cx="250" cy="191" rx="5" ry="9" fill="#152a1e"/><ellipse cx="279" cy="191" rx="5" ry="9" fill="#152a1e"/>
+<text x="209" y="279" style="fill:#b5ff82;font-size:14px">READY  REC  ASR  DOT</text>
+<text x="371" y="176" style="fill:#b5ff82;font-size:15px">DOT ・ 1 / 2</text>
+<text x="371" y="211" style="fill:#b5ff82;font-size:20px">ここにいるよ。</text>
+<text x="371" y="244" style="fill:#b5ff82;font-size:20px">今日は何を話そうか？</text>
+<text x="373" y="285" style="fill:#b5ff82;font-size:13px">スワイプでページ・履歴を移動</text>
+<text x="32" y="346" class="body accent">ASR確認中だけ：G2左右／R1で、長押しで送信／2タップで破棄</text>
+<rect x="30" y="374" width="435" height="128" rx="16" class="card"/>
+<text x="50" y="405" style="font-size:20px;font-weight:700">左／R1</text>
+<text x="50" y="437" class="body">長押し：RECになってから話す → 離す</text>
+<text x="50" y="471" class="body">スワイプ：文章・履歴　1タップ：最新へ</text>
+<rect x="485" y="374" width="445" height="128" rx="16" class="card"/>
+<text x="505" y="405" style="font-size:20px;font-weight:700">右</text>
+<text x="505" y="437" class="body">2タップ：消灯／点灯（通話中は終了）</text>
+<text x="505" y="471" class="body">長押し：電話／音声→テキストを切替</text>
+</svg>

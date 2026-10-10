@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="340" viewBox="0 0 960 340" role="img" aria-labelledby="title"><title id="title">G2・スマホ・Macブリッジ・Chromeの接続構成</title><style>text{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans",sans-serif;fill:#20302a} .muted{fill:#62736b} .title{font-size:24px;font-weight:700}.body{font-size:17px}.small{font-size:14px}.mono{font-family:ui-monospace,monospace}.card{fill:#fff;stroke:#ccdbd2;stroke-width:2}.accent{fill:#166f50}</style><rect width="960" height="340" rx="20" fill="#f3f7f4"/>
+<text x="32" y="44" class="title">自分のDotを、G2から使う</text>
+<text x="32" y="74" class="body muted">通話も音声→テキストも、Macへの接続先は1つ</text>
+<rect x="30" y="108" width="250" height="156" rx="16" class="card"/>
+<text x="54" y="142" class="title">Even G2 ＋ スマホ</text>
+<text x="54" y="178" class="body">G2：マイク・文章・操作</text>
+<text x="54" y="208" class="body">スマホ：設定・通話の音</text>
+<path d="M296 178 H334 M296 178 l10 -7 M296 178 l10 7 M334 178 l-10 -7 M334 178 l-10 7" fill="none" stroke="#166f50" stroke-width="3"/>
+<text x="303" y="213" class="small muted">LAN</text><text x="300" y="235" class="small muted">/ VPN</text>
+<rect x="350" y="108" width="250" height="156" rx="16" class="card"/>
+<text x="374" y="142" class="title">Macブリッジ</text>
+<text x="374" y="178" class="body">音声認識・通話音声</text>
+<text x="374" y="208" class="body">入力・返答・新着通知</text>
+<text x="374" y="241" class="small mono accent">1 port : 8799</text>
+<path d="M616 178 H654 M616 178 l10 -7 M616 178 l10 7 M654 178 l-10 -7 M654 178 l-10 7" fill="none" stroke="#166f50" stroke-width="3"/>
+<rect x="670" y="108" width="260" height="156" rx="16" class="card"/>
+<text x="694" y="142" class="title">Chrome ＋ Dot</text>
+<text x="694" y="178" class="body">拡張を登録して接続</text>
+<text x="694" y="208" class="body">通常タブを開いて使う</text>
+<text x="32" y="307" class="small muted">通話：声で応答 → スマホ／イヤホン　　音声→テキスト：文章で応答 → G2／スマホ</text>
+</svg>

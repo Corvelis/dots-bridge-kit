@@ -1,0 +1,27 @@
+name: Build release assets
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos-arm64:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: test "$(uname -m)" = arm64
+      - run: node scripts/release-check.mjs
+      - run: npm ci
+      - run: npm test
+      - run: npm run release:all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dots-bridge-kit-release-assets
+          path: |
+            build/releases/dots-bridge-kit-source.zip
+            build/releases/dots-bridge-kit-macos-arm64-*.zip
+            build/releases/SHA256SUMS.txt
+          if-no-files-found: error

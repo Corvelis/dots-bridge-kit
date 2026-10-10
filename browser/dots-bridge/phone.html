@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>あなたのdot</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,sans-serif;background:#151719;color:#edf1f1}*{box-sizing:border-box}body{max-width:720px;margin:0 auto;padding:20px 16px}header{display:flex;align-items:center;justify-content:space-between;gap:16px}h1{font-size:22px}#status{font-size:13px;color:#adbdb8}details{background:#222629;padding:14px;border-radius:14px;margin:12px 0}summary{cursor:pointer}label{display:block;font-size:13px;margin:12px 0 6px}input,textarea,button{font:inherit;border:1px solid #475253;border-radius:10px;padding:12px;color:inherit;background:#252b2d}input{width:100%}button{cursor:pointer;background:#b8e9d4;color:#14261d;font-weight:650}button:disabled{opacity:.45;cursor:default}#connect{margin-top:12px}#messages{min-height:45vh;padding:12px 0 24px}.message{white-space:pre-wrap;overflow-wrap:anywhere;padding:14px 16px;background:#272c2f;border-radius:16px;margin:12px 36px 12px 0;line-height:1.65}.user{margin:12px 0 12px 36px;background:#29463d}.meta{font-size:12px;color:#9fb6ad}.error{color:#ffb5af}form{position:sticky;bottom:0;display:flex;gap:10px;background:#151719;padding:12px 0 max(12px,env(safe-area-inset-bottom))}textarea{resize:none;flex:1;min-width:0;min-height:64px}#note{font-size:13px;line-height:1.6;color:#adbdb8}
+</style>
+<header><h1>あなたのdot</h1><span id="status">未接続</span></header>
+<details id="settings" open><summary>接続設定</summary><label for="token">ブリッジのペアリングトークン</label><input id="token" type="password" autocomplete="off" spellcheck="false"><button id="connect">接続</button><p id="note">MacのChromeで「あなたのdot」を開いておくと、同じdotと会話できます。トークンはこの画面を閉じると消えます。</p></details>
+<main id="messages" aria-live="polite"></main>
+<form id="composer"><textarea id="text" placeholder="メッセージ" aria-label="メッセージ" maxlength="24000"></textarea><button id="send" disabled>送信</button></form>
+<script>
+const $=id=>document.getElementById(id);let socket,online=false,busy=false,next=0,reconnect,heartbeat;const pending=new Map(),views=new Map();
+const uuid=()=>typeof crypto.randomUUID==='function'?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(Number(c)^(crypto.getRandomValues(new Uint8Array(1))[0]&(15>>Number(c)/4))).toString(16));
+const appId=sessionStorage.dotAppId||(sessionStorage.dotAppId='phone-'+uuid());
+const saved=()=>JSON.parse(sessionStorage.dotRequests||'[]');
+function remember(id,text){const a=saved();a.push({id,text});sessionStorage.dotRequests=JSON.stringify(a.slice(-30));}
+function render(m){let row=views.get(m.requestId);if(!row){const u=document.createElement('div');u.className='message user';u.textContent=m.text||'';const a=document.createElement('div');a.className='message';const meta=document.createElement('div');meta.className='meta';$('messages').append(u,a,meta);row={u,a,meta,sentAt:Date.now()};views.set(m.requestId,row);}row.status=m.status;if(m.status==='completed'){row.a.textContent=m.reply;row.meta.textContent=((m.updatedAt-m.createdAt)/1000).toFixed(2)+'秒';busy=false;}else if(m.status==='failed'||m.status==='uncertain'){row.a.textContent=m.status==='uncertain'?'返答を確認できませんでした。dotの画面で確認してください。入力は自動で再送していません。':'送信できませんでした。Mac側のdotと接続状態を確認してください。';row.a.classList.add('error');busy=false;}else row.a.textContent=m.status==='processing'?'dotが返信中…':'送信待ち…';busy=[...views.values()].some(v=>v.status==='queued'||v.status==='processing');$('send').disabled=!online||busy;window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});}
+const notificationCache=JSON.parse(sessionStorage.dotNotifications||'{"cursor":0,"items":[]}');
+const notificationIds=new Set();
+function showNotification(n){
+  if(notificationIds.has(n.id))return;
+  notificationIds.add(n.id);
+  const row=document.createElement('div');row.className='message';row.textContent=n.text;
+  const meta=document.createElement('div');meta.className='meta';meta.textContent='dotからのメッセージ · '+new Date(n.receivedAt).toLocaleTimeString();
+  $('messages').append(row,meta);window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+for(const n of notificationCache.items)showNotification(n);
+function receiveNotification(n){
+  if(!notificationCache.items.some(item=>item.id===n.id))notificationCache.items.push(n);
+  notificationCache.items=notificationCache.items.slice(-1024);
+  notificationCache.cursor=Math.max(notificationCache.cursor,n.sequence);
+  sessionStorage.dotNotifications=JSON.stringify(notificationCache);
+  showNotification(n);
+}
+async function syncNotifications(){
+  let more=true;
+  while(more){
+    const page=await rpc('notification/sync',{after:notificationCache.cursor,limit:100});
+    for(const n of page.items)receiveNotification(n);
+    if(page.gap){const note=document.createElement('p');note.className='meta';note.textContent='保存上限より古いdotのメッセージは取得できません。';$('messages').append(note);}
+    notificationCache.cursor=page.nextCursor;
+    sessionStorage.dotNotifications=JSON.stringify(notificationCache);
+    more=page.hasMore;
+  }
+}
+function rpc(method,params={}){return new Promise((resolve,reject)=>{if(socket?.readyState!==1){reject(Error('未接続'));return;}const id=++next;const timer=setTimeout(()=>{pending.delete(id);reject(Error('応答を確認できませんでした。入力は再送しません。'));},10000);pending.set(id,{resolve,reject,timer});socket.send(JSON.stringify({id,method,params}));});}
+function state(s){online=!!s.workerOnline;$('status').textContent=online?'dotに接続済み':'Macのdotを待っています';$('send').disabled=!online||busy;}
+function connect(){clearTimeout(reconnect);clearInterval(heartbeat);if(socket){socket.onclose=null;socket.close();}const secret=$('token').value.trim();if(!secret){$('status').textContent='トークンを入力してください';return;}const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/dots/ws');socket=ws;$('status').textContent='接続中…';ws.onopen=()=>ws.send(JSON.stringify({type:'dots.hello',version:1,appId,token:secret}));ws.onmessage=async e=>{const m=JSON.parse(e.data);if(m.type==='dots.ready'){state(m);$('settings').open=false;try{await syncNotifications();}catch(error){$('status').textContent='通知同期: '+error.message;}for(const record of saved()){try{render(await rpc('message/read',{requestId:record.id}));}catch{}}heartbeat=setInterval(()=>rpc('status').then(state).catch(()=>{}),2000);}else if(m.type==='dots.message')render(m.message);else if(m.type==='dots.notification')receiveNotification(m.notification);else if(pending.has(m.id)){const p=pending.get(m.id);pending.delete(m.id);clearTimeout(p.timer);m.error?p.reject(Error(m.error.message)):p.resolve(m.result);}};ws.onclose=e=>{online=false;$('send').disabled=true;clearInterval(heartbeat);for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error('接続が切れました。入力は再送しません。'));}pending.clear();$('status').textContent=e.code===4401?'トークンを確認してください':'切断・再接続中…';if(e.code!==4401)reconnect=setTimeout(connect,2000);else $('settings').open=true;};ws.onerror=()=>{};}
+$('connect').onclick=connect;$('composer').onsubmit=async e=>{e.preventDefault();const text=$('text').value.trim();if(!text||!online||busy)return;if([...text].length>12000){$('status').textContent='12,000文字以内で入力してください';return;}const requestId=uuid();remember(requestId,text);busy=true;$('text').value='';render({requestId,text,status:'queued'});try{render(await rpc('message/send',{requestId,text}));}catch(error){render({requestId,text,status:'uncertain'});$('status').textContent=error.message;}};
+</script></html>
