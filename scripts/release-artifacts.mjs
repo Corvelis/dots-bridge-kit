@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, lstatSync } from "node:fs";
-import { resolve, relative, sep } from "node:path";
+import { resolve, relative, dirname, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { inspectReleaseText, privateRules, dependencyText } from "./release-check.mjs";
 
@@ -17,6 +17,21 @@ export function artifactFiles(base) {
   walk(base); return files;
 }
 export const digest = bytes => createHash("sha256").update(bytes).digest("hex");
+export function checkArtifactDocumentation(base) {
+  const files = artifactFiles(base), paths = new Set(files.map(name => resolve(base, name)));
+  let links = 0;
+  for (const name of files.filter(name => name.endsWith(".md"))) {
+    const document = resolve(base, name);
+    for (const match of readFileSync(document, "utf8").matchAll(/!?\[[^\]\n]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+      const link = match[1];
+      if (/^[a-z][a-z0-9+.-]*:/i.test(link) || link.startsWith("#")) continue;
+      const target = decodeURIComponent(link.split("#")[0]);
+      if (!paths.has(resolve(dirname(document), target))) throw new Error("Missing local documentation link");
+      links++;
+    }
+  }
+  return { ok: true, links };
+}
 export function checkRuntimeManifest(base) {
   const manifest = JSON.parse(readFileSync(resolve(base, "release-runtime.json"), "utf8"));
   if (Object.keys(manifest).sort().join(",") !== "arch,files,format,macos,platform,version" || manifest.format !== 1
@@ -27,6 +42,7 @@ export function checkRuntimeManifest(base) {
   for (const name of names) {
     if (!/^[a-f0-9]{64}$/.test(manifest.files[name]) || digest(readFileSync(resolve(base, name))) !== manifest.files[name]) throw new Error("Runtime file checksum mismatch");
   }
+  checkArtifactDocumentation(base);
   return manifest;
 }
 export function checkArtifactDirectory(base, expected, { forbiddenStrings = privateRules() } = {}) {

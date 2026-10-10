@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 // @ts-expect-error Node release scripts are also imported by tests.
-import { checkArtifactDirectory, checkRuntimeManifest, digest } from "../scripts/release-artifacts.mjs";
+import { checkArtifactDirectory, checkArtifactDocumentation, checkRuntimeManifest, digest } from "../scripts/release-artifacts.mjs";
 // @ts-expect-error Packaging is a standalone Node script.
 import { personalManifest, preparePrebuiltG2 } from "../scripts/g2-package.mjs";
 import { connectionEndpoints } from "../dots-phone-g2/src/connection-settings";
@@ -48,6 +48,24 @@ describe("compiled release privacy", () => {
     writeFileSync(join(dir, "helper"), bytes); save({ ...manifest, token: randomBytes(32).toString("hex") });
     expect(() => checkRuntimeManifest(dir)).toThrow("Invalid runtime manifest");
     save(manifest); writeFileSync(join(dir, "notes.md"), "unlisted"); expect(() => checkRuntimeManifest(dir)).toThrow("inventory");
+  });
+});
+describe("release documentation", () => {
+  it("resolves bundled guides, images and encoded filenames while ignoring web links and anchors", () => {
+    const dir = fixture(); mkdirSync(join(dir, "docs/images"), { recursive: true });
+    writeFileSync(join(dir, "README.md"), '[Guide](docs/Call%20Guide.md#voice) ![Diagram](docs/images/setup.svg) [Web](https://example.invalid) [Section](#setup)');
+    writeFileSync(join(dir, "docs/Call Guide.md"), '[Home](../README.md)');
+    writeFileSync(join(dir, "docs/images/setup.svg"), '<svg/>');
+    expect(checkArtifactDocumentation(dir)).toEqual({ ok: true, links: 3 });
+  });
+  it("rejects a guide or image missing from the release even when all included files are present", () => {
+    const dir = fixture(); mkdirSync(join(dir, "docs"));
+    writeFileSync(join(dir, "docs/protocols.md"), '[Call API](../call/README.md)');
+    expect(() => checkArtifactDocumentation(dir)).toThrow("Missing local documentation link");
+    mkdirSync(join(dir, "call")); writeFileSync(join(dir, "call/README.md"), 'Call API');
+    expect(checkArtifactDocumentation(dir).links).toBe(1);
+    writeFileSync(join(dir, "docs/protocols.md"), '![Setup](images/setup.svg)');
+    expect(() => checkArtifactDocumentation(dir)).toThrow("Missing local documentation link");
   });
 });
 describe("G2 packaging without compilers", () => {

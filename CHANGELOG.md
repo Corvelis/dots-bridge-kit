@@ -15,5 +15,6 @@
 - History browsing while waiting for a Dot reply, with the selected message and page preserved.
 - While an ASR draft is displayed for confirmation, hold either G2 temple or R1 to send; double tap to discard and keep the display awake. Other states retain their usual controls.
 - Source ZIP, compiled Apple Silicon Mac runtime ZIP and checksums; G2 packages and Chrome extension permissions are generated for each user's endpoints.
+- Call-API documentation in the Mac runtime ZIP.
 - Guided setup, connection diagnostics and background start/stop commands.
 - Tailscale/VPN setup for access away from home, including the Mac endpoint, G2 package updates and a mobile-data connection check.

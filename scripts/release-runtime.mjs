@@ -19,7 +19,7 @@ const temporary = mkdtempSync(resolve(output, ".runtime-")), stage = resolve(tem
 const runtimeScripts = ["configuration", "setup", "chrome-host", "dots-native-host", "dots-native-protocol", "dots-voice-events", "dots-voice-native", "doctor", "token", "start", "run", "services", "supervisor", "gateway", "pack-g2", "g2-package"];
 try {
   const sources = sourceFiles().filter(file => file === "README.md" || file === "LICENSE" || file === "THIRD_PARTY_NOTICES.md" || file === ".env.example"
-    || file === "app.dots-phone-g2.json" || file.startsWith("docs/") || file.startsWith("browser/dots-bridge/") || file.startsWith("dots-voice-bridge/public/")
+    || file === "app.dots-phone-g2.json" || file === "dots-voice-bridge/README.md" || file.startsWith("docs/") || file.startsWith("browser/dots-bridge/") || file.startsWith("dots-voice-bridge/public/")
     || runtimeScripts.some(script => file === "scripts/" + script + ".mjs"));
   for (const file of sources) {
     mkdirSync(dirname(resolve(stage, file)), { recursive: true }); cpSync(resolve(root, file), resolve(stage, file));
