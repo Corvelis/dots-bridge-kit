@@ -16,7 +16,7 @@ const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const name = "dots-bridge-kit-macos-" + process.arch + "-v" + pkg.version;
 const output = resolve(root, "build/releases"); mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(output, ".runtime-")), stage = resolve(temporary, name);
-const runtimeScripts = ["configuration", "setup", "chrome-host", "dots-native-host", "dots-native-protocol", "dots-voice-events", "dots-voice-native", "doctor", "token", "start", "run", "services", "supervisor", "gateway", "pack-g2", "g2-package"];
+const runtimeScripts = ["configuration", "setup", "chrome-extension", "chrome-host", "dots-native-host", "dots-native-protocol", "dots-voice-events", "dots-voice-native", "doctor", "token", "start", "run", "services", "supervisor", "gateway", "pack-g2", "g2-package"];
 try {
   const sources = sourceFiles().filter(file => file === "README.md" || file === "LICENSE" || file === "THIRD_PARTY_NOTICES.md" || file === ".env.example"
     || file === "app.dots-phone-g2.json" || file === "dots-voice-bridge/README.md" || file.startsWith("docs/") || file.startsWith("browser/dots-bridge/") || file.startsWith("dots-voice-bridge/public/")

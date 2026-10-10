@@ -9,7 +9,7 @@
 | 自宅ではつながるが外ではつながらない | 両端末のVPNがオンか、接続先がMacのVPN IPか、Macがスリープしていないか。[外出先での設定](configuration.md#外出先から使うtailscaleなどのvpn) |
 | ポートが使用中と出る | 手動と常駐を二重起動していないか。別アプリが同じポートを使う場合はsetupの --port を変更 |
 | 認証に失敗する | npm run token で自分のトークンを確認。URLだけ変更しても認証できない |
-| Chromeが未接続 | build/extension を導入したか、通常タブか、設定したDot URLか、Dotタブを再読み込みしたか |
+| Chromeが未接続 | 拡張ZIPのフォルダ（またはbuild/extension）を読み込んだか、同じリリースのMacセットでsetupとchrome:installを実行したか、通常タブか、設定したDot URLか、Dotタブを再読み込みしたか |
 | 通話ボタンが動かない | Dotの電話機能が利用できるか。設定したDotの通常タブを開く |
 | 音声入力が届かない | ChromeのマイクがBlackHole 2chか、G2マイクの許可、PTTが録音中か |
 | 通話の返答が無音 | Macの音声収録許可とヘルパーの再起動、スマホの音声オン、出力先 |

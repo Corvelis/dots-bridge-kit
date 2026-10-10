@@ -5,17 +5,21 @@ import { encodeNativeMessage, NativeMessageDecoder } from "./dots-native-protoco
 import { recordVoiceEvent } from "./dots-voice-events.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const config = JSON.parse(readFileSync(resolve(root, ".dots-bridge/dots-worker.json"), "utf8"));
 const settings = JSON.parse(readFileSync(resolve(root, ".dots-bridge/dots-browser-install.json"), "utf8"));
-const base = new URL(config.baseUrl);
-if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.username || base.password
-  || !/^[a-f0-9]{64}$/.test(config.token)
-  || process.argv[2] !== `chrome-extension://${settings.extensionId}/`) process.exit(1);
+const identities = settings.extensionIds ?? [settings.extensionId];
+if (!Array.isArray(identities) || !identities.some(id => typeof id === "string" && /^[a-p]{32}$/.test(id)
+  && process.argv[2] === `chrome-extension://${id}/`)) process.exit(1);
+let config, base, locked = false;
 const jobPath = resolve(root, ".dots-bridge/dots-browser-job.json");
 const statePath = resolve(root, ".dots-bridge/dots-browser-state.json");
 const metricsPath = resolve(root, ".dots-bridge/dots-browser-metrics.json");
 const lockPath = resolve(root, ".dots-bridge/dots-browser-host.lock");
-try {
+function initializeWorker() {
+  if (locked) return;
+  config = JSON.parse(readFileSync(resolve(root, ".dots-bridge/dots-worker.json"), "utf8"));
+  base = new URL(config.baseUrl);
+  if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.username || base.password
+    || !/^[a-f0-9]{64}$/.test(config.token)) throw new Error("Invalid local worker configuration");
   if (existsSync(lockPath)) {
     const previous = Number(readFileSync(lockPath, "utf8"));
     if (!Number.isInteger(previous) || previous < 1) throw new Error("Invalid browser worker lock");
@@ -24,8 +28,9 @@ try {
     unlinkSync(lockPath);
   }
   writeFileSync(lockPath, String(process.pid), { flag: "wx", mode: 0o600 });
-} catch (error) { process.stderr.write(error.message + "\n"); process.exit(1); }
-process.on("exit", () => { if (existsSync(lockPath) && readFileSync(lockPath, "utf8") === String(process.pid)) unlinkSync(lockPath); });
+  locked = true; status("starting");
+}
+process.on("exit", () => { if (locked && existsSync(lockPath) && readFileSync(lockPath, "utf8") === String(process.pid)) unlinkSync(lockPath); });
 const decoder = new NativeMessageDecoder();
 let running = false, closing = false, job = null, pollAbort = null, jobTimer = null, sequence = Promise.resolve();
 const save = (path, value) => {
@@ -43,6 +48,7 @@ async function drainHistory() {
   } finally { historySending = false; }
 }
 function forwardVoiceMessage(message) {
+  if (!locked) return false;
   if (message?.type === "voice.diagnostic") { recordVoiceEvent(`extension-${message.event}`, message); return true; }
   if (["voice.state", "voice.result"].includes(message?.type)) { voiceConnection?.forward(message); return true; }
   return false;
@@ -88,10 +94,14 @@ async function poll() {
 }
 async function handle(message) {
   if (!message || typeof message !== "object") throw new Error("Invalid browser message");
+  // Settings requests must work before startup and alongside a live call worker.
+  // Return only the selected Dot URL, without pairing or worker credentials.
+  if (message.type === "config") { send({ type: "config", dotUrl: settings.dotUrl }); return; }
   if (forwardVoiceMessage(message)) return;
   if (message.type === "ready") {
     if (running) return;
     if (message.url !== settings.dotUrl) throw new Error("Wrong dot page");
+    initializeWorker();
     if (!voiceConnection && existsSync(voiceConfigPath)) {
       const { connectDotsVoice } = await import("./dots-voice-native.mjs");
       voiceConnection = connectDotsVoice({ configPath: voiceConfigPath, dotUrl: settings.dotUrl, send, diagnostic: recordVoiceEvent });
@@ -146,6 +156,7 @@ async function handle(message) {
 async function shutdown(reason) {
   if (closing) return;
   closing = true; running = false; pollAbort?.abort(); clearTimeout(jobTimer);
+  if (!locked) { process.exit(0); return; }
   recordVoiceEvent("native-host-stopped", { reason: "native-host-disconnected" });
   voiceConnection?.close();
   try { await abandon(reason); } catch { /* Preserve the unresolved delivery for the next startup. */ }
@@ -162,8 +173,10 @@ process.stdin.on("data", chunk => {
   }
   catch (error) { void shutdown(error.message); }
 });
-process.stdin.on("end", () => void shutdown("Browser port closed"));
+process.stdin.on("end", () => {
+  if (locked) void shutdown("Browser port closed");
+  else void sequence.finally(() => shutdown("Browser port closed"));
+});
 process.on("SIGTERM", () => void shutdown("Native host stopped"));
 process.on("SIGINT", () => void shutdown("Native host stopped"));
 process.stdout.on("error", () => void shutdown("Browser output closed"));
-status("starting");

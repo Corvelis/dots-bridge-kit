@@ -1,8 +1,15 @@
-import { DOT_URL } from "./settings.js";
+import { readConfiguredDotUrl } from "./settings.js";
 import { normalDotTab, prepareDotTab, openNormalDot } from "./tab-routing.js";
 let owner = null, native = null, activeId = null, retry = null;
+let dotUrl, settingsPending;
+function loadSettings() {
+  if (owner && dotUrl) return Promise.resolve(dotUrl);
+  if (!settingsPending) settingsPending = readConfiguredDotUrl(chrome).then(url => { dotUrl = url; return url; })
+    .finally(() => { settingsPending = undefined; });
+  return settingsPending;
+}
 const badge = (text, color) => { chrome.action.setBadgeText({ text }); chrome.action.setBadgeBackgroundColor({ color }); };
-const prepareWindow = (port, options) => prepareDotTab(chrome, DOT_URL, port.sender.tab.id, options);
+const prepareWindow = (port, options) => prepareDotTab(chrome, dotUrl, port.sender.tab.id, options);
 function disconnect() {
   clearTimeout(retry);
   const old = native; native = null; activeId = null;
@@ -17,7 +24,7 @@ function connect() {
     if (message.type === "voice.command") {
       const page = owner;
       try {
-        if (message.url !== DOT_URL) throw new Error("Wrong dot call target");
+        if (message.url !== dotUrl) throw new Error("Wrong dot call target");
         if (message.action === "start" || message.action === "prepare") await prepareWindow(page);
         if (page === owner && connection === native) page.postMessage(message);
       } catch (error) { connection.postMessage({ type: "voice.result", id: message.id, error: error.message }); }
@@ -28,7 +35,7 @@ function connect() {
       try {
         await prepareWindow(page);
         if (page !== owner || connection !== native) return;
-        page.postMessage({ ...message, url: DOT_URL });
+        page.postMessage({ ...message, url: dotUrl });
       } catch (error) {
         connection.postMessage({ type: "failure", id: message.id, reason: error.message, sent: false });
       }
@@ -47,14 +54,18 @@ function connect() {
     badge("!", "#aa3333");
     retry = setTimeout(connect, 5000);
   });
-  connection.postMessage({ type: "ready", url: DOT_URL });
+  connection.postMessage({ type: "ready", url: dotUrl });
 }
 chrome.runtime.onConnect.addListener(port => {
-  if (port.name !== "dots-page" || port.sender?.url !== DOT_URL || port.sender?.frameId !== 0) { port.disconnect(); return; }
+  if (port.name !== "dots-page" || !port.sender?.url?.startsWith("https://chatgpt.com/dots/")
+    || port.sender?.frameId !== 0 || !port.sender?.tab) { port.disconnect(); return; }
   let alive = true;
   // Validate the window before claiming ownership. A reconnecting old popup must
   // not exclude a normal tab, and messages sent during this lookup must survive.
-  const initialized = normalDotTab(chrome, DOT_URL, port.sender.tab.id).then(() => {
+  const initialized = loadSettings().then(async url => {
+    if (!alive) return false;
+    if (port.sender.url !== url) { port.postMessage({ type: "inactive" }); port.disconnect(); return false; }
+    await normalDotTab(chrome, url, port.sender.tab.id);
     if (!alive) return false;
     if (owner) throw new Error("Another dot tab owns the bridge");
     owner = port;
@@ -99,8 +110,10 @@ chrome.runtime.onConnect.addListener(port => {
   });
   port.onDisconnect.addListener(() => { alive = false; if (owner !== port) return; owner = null; disconnect(); badge("OFF", "#777777"); });
 });
-const openDot = (focus = false) => openNormalDot(chrome, DOT_URL, { focus, preferredTabId: owner?.sender.tab.id });
+const openDot = async (focus = false) => openNormalDot(chrome, await loadSettings(), { focus, preferredTabId: owner?.sender.tab.id });
 const openInBackground = () => { void openDot().catch(error => { console.warn(error.message); badge("!", "#aa3333"); }); };
 chrome.runtime.onStartup.addListener(openInBackground);
 chrome.runtime.onInstalled.addListener(openInBackground);
-chrome.action.onClicked.addListener(() => { void openDot(true).catch(error => { console.warn(error.message); badge("!", "#aa3333"); }); });
+chrome.action.onClicked.addListener(() => { void openDot(true).catch(error => {
+  console.warn(error.message); badge("!", "#aa3333"); void chrome.runtime.openOptionsPage();
+}); });

@@ -5,13 +5,14 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { prepare, validateDotUrl, validateHost, ports, publicPort, connectionUrls, readPairing, root } from "../scripts/configuration.mjs";
 import { checkRelease, sourceFiles } from "../scripts/release-check.mjs";
+import { chromeIdentity, copyChromeExtension, chromeFiles } from "../scripts/chrome-extension.mjs";
 import { connectionFromBaseUrl, loadConnection, saveConnection, validateConnection } from "../dots-phone-g2/src/connection-settings";
 
 const directories: string[] = [];
 afterEach(() => { for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 const temporary = () => { const dir = mkdtempSync(join(tmpdir(), "dots-public-setup-")); directories.push(dir); return dir; };
 describe("public setup and distribution", () => {
-  it("generates a private pairing token and exact Dot permissions, and preserves identity when reconfigured", () => {
+  it("saves private settings separately from a shared extension and preserves pairing when reconfigured", () => {
     const dir = temporary(); cpSync(resolve(root, "browser/dots-bridge"), join(dir, "browser/dots-bridge"), { recursive: true });
     const dotUrl = "https://chatgpt.com/dots/" + randomUUID();
     const first = prepare({ dotUrl, phoneHost: "mac.example.invalid", requestedPort: 9799 }, dir);
@@ -20,13 +21,41 @@ describe("public setup and distribution", () => {
     expect(pairing.token).toMatch(/^[a-f0-9]{64}$/); expect(statSync(join(dir, ".dots-bridge/pairing.json")).mode & 0o777).toBe(0o600);
     expect(pairing.port).toBe(9799); expect(new Set([pairing.port, ...Object.values(pairing.ports)]).size).toBe(4);
     expect(Object.values(connectionUrls(pairing)).map(url => new URL(url).origin)).toEqual(Array(3).fill("ws://mac.example.invalid:9799"));
-    expect(manifest.host_permissions).toEqual([dotUrl]); expect(first.extensionId).toMatch(/^[a-p]{32}$/);
+    expect(manifest.host_permissions).toEqual(["https://chatgpt.com/*"]);
+    expect(manifest.content_scripts[0].matches).toEqual(["https://chatgpt.com/dots/*"]);
+    expect(manifest.permissions).toEqual(["nativeMessaging"]);
+    expect(first.extensionId).toBe(chromeIdentity(root).extensionId);
     expect(readFileSync(join(first.extension, "settings.js"), "utf8")).not.toContain(pairing.token);
+    expect(readFileSync(join(first.extension, "settings.js"), "utf8")).not.toContain(dotUrl);
     const host = JSON.parse(readFileSync(join(dir, ".dots-bridge/dots-native-manifest.json"), "utf8"));
     expect(host.allowed_origins).toEqual(["chrome-extension://" + first.extensionId + "/"]);
     const second = prepare({ dotUrl, phoneHost: "new-mac.example.invalid" }, dir);
     expect(second.extensionId).toBe(first.extensionId); expect(JSON.parse(readFileSync(join(dir, ".dots-bridge/pairing.json"), "utf8")).token).toBe(pairing.token);
     expect(readPairing(dir).ports).toEqual(pairing.ports);
+    const other = temporary(); cpSync(resolve(root, "browser/dots-bridge"), join(other, "browser/dots-bridge"), { recursive: true });
+    expect(prepare({ dotUrl: "https://chatgpt.com/dots/home", phoneHost: "other.example.invalid" }, other).extensionId).toBe(first.extensionId);
+  });
+  it("keeps only the valid prior extension authorized during an upgrade", () => {
+    const dir = temporary(); cpSync(resolve(root, "browser/dots-bridge"), join(dir, "browser/dots-bridge"), { recursive: true });
+    mkdirSync(join(dir, ".dots-bridge"));
+    const legacyId = "a".repeat(32);
+    writeFileSync(join(dir, ".dots-bridge/dots-browser-install.json"), JSON.stringify({ extensionId: legacyId }));
+    const options = { dotUrl: "https://chatgpt.com/dots/home", phoneHost: "mac.example.invalid" };
+    const shared = prepare(options, dir);
+    const expected = ["chrome-extension://" + shared.extensionId + "/", "chrome-extension://" + legacyId + "/"];
+    expect(JSON.parse(readFileSync(join(dir, ".dots-bridge/dots-native-manifest.json"), "utf8")).allowed_origins).toEqual(expected);
+    prepare(options, dir);
+    expect(JSON.parse(readFileSync(join(dir, ".dots-bridge/dots-native-manifest.json"), "utf8")).allowed_origins).toEqual(expected);
+    writeFileSync(join(dir, ".dots-bridge/dots-browser-install.json"), JSON.stringify({ extensionId: "*" }));
+    prepare(options, dir);
+    expect(JSON.parse(readFileSync(join(dir, ".dots-bridge/dots-native-manifest.json"), "utf8")).allowed_origins).toEqual(expected.slice(0, 1));
+  });
+  it("copies only reviewed unconfigured extension files and replaces stale generated files", () => {
+    const dir = temporary(), output = join(dir, "extension");
+    mkdirSync(output); writeFileSync(join(output, "private-settings.json"), "local-only");
+    copyChromeExtension(root, output);
+    for (const file of chromeFiles) expect(readFileSync(join(output, file))).toEqual(readFileSync(resolve(root, "browser/dots-bridge", file)));
+    expect(() => readFileSync(join(output, "private-settings.json"))).toThrow();
   });
   it("accepts the canonical home URL with exact scope", () => {
     expect(validateDotUrl("https://chatgpt.com/dots/home")).toBe("https://chatgpt.com/dots/home");

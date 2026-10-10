@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Dots Bridge Kit",
+  "version": "0.2.7",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqTE/vHt7NUfMhp3ZqarhPCtNVppFx4p0dhePN3lcWtxhauKoYNV9o20jrKTJyhBTSUoWrDP/gkjcs4IbVAv0k0dFHS/N8q59X+nJjS4ddhW6wcMijBIwCw6aj2sH9Rm+IIpJseF2SjgTGO3DNNXlpddrSvvvvajh9PvYWMNZ3RPUsvuxOsPPgS6xSml8awoiBq30+YEIpmu27D0jyBVL3oaAmT63g9hzOviH/KnfOXynVYlmFRdKMQIBB9BdV2342kJQUJWvEuUKMQEViGeGd/oodJlqpwirYb2BhELx55KJp7nCYCOcZAyNRTL5PdT34m2QwkohMqCZdKcSkhxr/QIDAQAB",
+  "description": "Connect your configured Dot to your local text and voice bridges.",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/dots/*"
+      ],
+      "js": [
+        "watch.js",
+        "call-control.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "Dots Bridge Kit — open your Dot"
+  }
+}

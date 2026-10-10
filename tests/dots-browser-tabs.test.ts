@@ -5,8 +5,10 @@ import { runInNewContext } from "node:vm";
 import { hostName } from "../scripts/configuration.mjs";
 // @ts-expect-error Chrome's service worker also imports this JavaScript module.
 import { normalDotTab, prepareDotTab, openNormalDot } from "../browser/dots-bridge/tab-routing.js";
+// @ts-expect-error The shared extension reads local native-host settings.
+import { readConfiguredDotUrl } from "../browser/dots-bridge/settings.js";
 
-const dotUrl = "https://chatgpt.com/dots/test";
+const dotUrl = "https://chatgpt.com/dots/home";
 function event() {
   const listeners: Array<(value?: any) => void> = [];
   return { addListener: (listener: (value?: any) => void) => listeners.push(listener),
@@ -31,15 +33,46 @@ function setup(tabs: any[] = [], windows: any[] = []) {
       getAll: vi.fn(async () => windows), update: vi.fn(async () => ({})),
       create: vi.fn(async () => ({ id: 90, tabs: [{ id: 99 }] })),
     },
-    runtime: { onConnect: event(), onStartup: event(), onInstalled: event(), connectNative: vi.fn(() => native) },
+    runtime: { onConnect: event(), onStartup: event(), onInstalled: event(), connectNative: vi.fn(() => native),
+      sendNativeMessage: vi.fn(async () => ({ type: "config", dotUrl })), openOptionsPage: vi.fn(async () => {}) },
     action: { onClicked: event(), setBadgeText: vi.fn(), setBadgeBackgroundColor: vi.fn() },
   };
   const background = () => runInNewContext(readFileSync("browser/dots-bridge/background.js", "utf8").replace(/^import .*;\n/gm, ""),
-    { chrome, DOT_URL: dotUrl, normalDotTab, prepareDotTab, openNormalDot, setTimeout, clearTimeout, console });
+    { chrome, readConfiguredDotUrl, normalDotTab, prepareDotTab, openNormalDot, setTimeout, clearTimeout, console });
   return { chrome, native, background };
 }
 
 describe("Dots normal Chrome tabs", () => {
+  it("waits for saved settings and rejects another Dot without claiming or controlling it", async () => {
+    const t = setup([{ id: 1, windowId: 10, url: dotUrl }], [{ id: 10, type: "normal" }]);
+    let resolveSettings!: (value: any) => void;
+    t.chrome.runtime.sendNativeMessage.mockImplementationOnce(() => new Promise(resolve => { resolveSettings = resolve; }));
+    t.background();
+    const normal = port(1), wrong = port(2); wrong.sender.url = dotUrl + "-other";
+    t.chrome.runtime.onConnect.emit(wrong); wrong.onMessage.emit({ type: "ready" });
+    t.chrome.runtime.onConnect.emit(normal); normal.onMessage.emit({ type: "ready" });
+    expect(t.chrome.runtime.connectNative).not.toHaveBeenCalled();
+    resolveSettings({ type: "config", dotUrl });
+    await vi.waitFor(() => expect(t.chrome.runtime.connectNative).toHaveBeenCalledTimes(1));
+    expect(wrong.postMessage).toHaveBeenCalledWith({ type: "inactive" });
+    expect(wrong.disconnect).toHaveBeenCalledTimes(1);
+    expect(t.chrome.runtime.sendNativeMessage).toHaveBeenCalledTimes(1);
+    expect(t.chrome.runtime.sendNativeMessage).toHaveBeenCalledWith(hostName, { type: "config" });
+    expect(t.native.postMessage).toHaveBeenCalledWith({ type: "ready", url: dotUrl });
+  });
+
+  it("rejects invalid native settings and allows a later retry after setup is repaired", async () => {
+    const t = setup([{ id: 1, windowId: 10, url: dotUrl }], [{ id: 10, type: "normal" }]);
+    for (const invalid of ["https://example.invalid/dots/home", dotUrl + "?token=example", "https://chatgpt.com/"]) {
+      t.chrome.runtime.sendNativeMessage.mockResolvedValueOnce({ type: "config", dotUrl: invalid });
+      await expect(readConfiguredDotUrl(t.chrome)).rejects.toThrow();
+    }
+    t.chrome.runtime.sendNativeMessage.mockRejectedValueOnce(new Error("Native host not installed"));
+    t.background(); const first = port(1); t.chrome.runtime.onConnect.emit(first); first.onMessage.emit({ type: "ready" });
+    await vi.waitFor(() => expect(first.disconnect).toHaveBeenCalledTimes(1));
+    const later = port(1); t.chrome.runtime.onConnect.emit(later); later.onMessage.emit({ type: "ready" });
+    await vi.waitFor(() => expect(t.chrome.runtime.connectNative).toHaveBeenCalledTimes(1));
+  });
   it("prepares a normal tab without moving or resizing it, and rejects an old popup", async () => {
     const t = setup([{ id: 1, windowId: 10, url: dotUrl }, { id: 2, windowId: 20, url: dotUrl }],
       [{ id: 10, type: "normal", state: "normal" }, { id: 20, type: "popup" }]);

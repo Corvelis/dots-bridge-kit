@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dots Bridge Kit — 接続設定</title>
+<style>
+  body { font: 16px/1.7 system-ui, sans-serif; max-width: 640px; margin: 48px auto; padding: 0 24px; color: #24352c; }
+  h1 { font-size: 24px; } code { background: #f0f4f1; padding: 3px 6px; border-radius: 4px; }
+  #dot { overflow-wrap: anywhere; } button { font: inherit; padding: 8px 16px; margin-right: 8px; cursor: pointer; }
+</style>
+<h1>Dots Bridge Kit</h1>
+<p>操作するDotのURLは、Mac実行用セットの <code>npm run setup</code> で設定・保存します。この拡張は保存された設定を読み取ります。</p>
+<p>初回はMac実行用セットのフォルダで <code>npm run setup</code>、<code>npm run chrome:install</code>、<code>npm run services:start</code> を実行してください。</p>
+<p>設定したDot：<span id="dot">確認中…</span></p>
+<p id="status" role="status"></p>
+<button id="refresh">設定を読み直す</button><button id="open" disabled>Dotを開く</button>
+<p>DotのURLを変更した後は、拡張とDotタブを再読み込みしてください。ZIPを作り直す必要はありません。</p>
+<script type="module" src="options.js"></script>
+</html>

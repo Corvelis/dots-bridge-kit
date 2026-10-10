@@ -39,8 +39,11 @@ npm run chrome:install
 ~~~
 
 Chromeで `chrome://extensions` を開き、右上の「デベロッパーモード」をオンにします。
-「パッケージ化されていない拡張機能を読み込む」で、展開したフォルダの **build/extension** を選びます。
+リリースの `dots-bridge-kit-chrome-v0.1.0.zip` を展開します。「パッケージ化されていない拡張機能を読み込む」で、**manifest.jsonが入った拡張フォルダ**を選びます。
+セットアップが作った **build/extension** も同じ拡張です。どちらか1つだけ読み込んでください。
 設定したDotの通常タブを開いておきます。フォルダの選び方は [Chrome公式手順](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world) でも確認できます。
+
+拡張はMac側に保存したDotのURLを読み取ります。URL変更後もZIPの作り直しは不要です。[ZIP版の手順・旧版からの更新](chrome-extension.md)
 
 **できた目印：** 拡張一覧に「Dots Bridge Kit」が表示される。
 

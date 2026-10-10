@@ -72,8 +72,8 @@ describe("release privacy boundary", () => {
     const marker = ["PRIVATE", "PROJECT", "MARKER"].join("-");
     const dir = fixture(marker), policyDir = fixture();
     mkdirSync(join(dir, "scripts"));
-    for (const name of ["configuration.mjs", "release-check.mjs"]) copyFileSync(resolve(root, "scripts", name), join(dir, "scripts", name));
-    inventory(dir, ["README.md", "scripts/configuration.mjs", "scripts/release-check.mjs"]);
+    for (const name of ["chrome-extension.mjs", "configuration.mjs", "release-check.mjs"]) copyFileSync(resolve(root, "scripts", name), join(dir, "scripts", name));
+    inventory(dir, ["README.md", "scripts/chrome-extension.mjs", "scripts/configuration.mjs", "scripts/release-check.mjs"]);
     const policy = join(policyDir, ".policy.json");
     writeFileSync(policy, JSON.stringify({ forbiddenStrings: [marker] }));
     const result = spawnSync(process.execPath, [join(dir, "scripts/release-check.mjs")], {
@@ -85,8 +85,8 @@ describe("release privacy boundary", () => {
   });
   it("fails closed for malformed local policy without echoing the supplied file", () => {
     const dir = fixture(); mkdirSync(join(dir, "scripts"));
-    for (const name of ["configuration.mjs", "release-check.mjs"]) copyFileSync(resolve(root, "scripts", name), join(dir, "scripts", name));
-    inventory(dir, ["README.md", "scripts/configuration.mjs", "scripts/release-check.mjs"]);
+    for (const name of ["chrome-extension.mjs", "configuration.mjs", "release-check.mjs"]) copyFileSync(resolve(root, "scripts", name), join(dir, "scripts", name));
+    inventory(dir, ["README.md", "scripts/chrome-extension.mjs", "scripts/configuration.mjs", "scripts/release-check.mjs"]);
     const policyDir = fixture(), policy = join(policyDir, ".policy.json"), privateValue = randomBytes(32).toString("hex");
     writeFileSync(policy, privateValue);
     const result = spawnSync(process.execPath, [join(dir, "scripts/release-check.mjs")], {
@@ -143,7 +143,7 @@ describe("release privacy boundary", () => {
     expect(() => checkRelease(dir)).toThrow("Invalid documentation image");
   });
   it("creates a clean source-only GitHub folder and refuses to overwrite Git history", () => {
-    const dir = fixture(), scripts = ["configuration.mjs", "release-check.mjs", "release-stage.mjs"];
+    const dir = fixture(), scripts = ["chrome-extension.mjs", "configuration.mjs", "release-check.mjs", "release-stage.mjs"];
     for (const name of scripts) {
       const target = join(dir, "scripts", name); mkdirSync(dirname(target), { recursive: true });
       copyFileSync(resolve(root, "scripts", name), target);

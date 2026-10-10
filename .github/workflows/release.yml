@@ -21,6 +21,7 @@ jobs:
         with:
           name: dots-bridge-kit-release-assets
           path: |
+            build/releases/dots-bridge-kit-chrome-*.zip
             build/releases/dots-bridge-kit-source.zip
             build/releases/dots-bridge-kit-macos-arm64-*.zip
             build/releases/SHA256SUMS.txt

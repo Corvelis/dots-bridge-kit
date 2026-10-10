@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:http";
@@ -10,6 +10,27 @@ import { DotsGateway } from "../bridge/src/dots-gateway";
 import { encodeNativeMessage, NativeMessageDecoder } from "../scripts/dots-native-protocol.mjs";
 
 describe("Chrome native message transport", () => {
+  it("returns only the Dot setting before bridge startup and rejects an unregistered extension", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "dots-native-config-"));
+    mkdirSync(join(dir, "scripts")); mkdirSync(join(dir, ".dots-bridge"));
+    for (const file of ["dots-native-host.mjs", "dots-native-protocol.mjs", "dots-voice-events.mjs"]) copyFileSync(resolve("scripts", file), join(dir, "scripts", file));
+    const extensionId = "a".repeat(32), dotUrl = "https://chatgpt.com/dots/home";
+    writeFileSync(join(dir, ".dots-bridge/dots-browser-install.json"), JSON.stringify({ extensionId, dotUrl }));
+    const request = async (id: string) => {
+      const child = spawn(process.execPath, [join(dir, "scripts/dots-native-host.mjs"), `chrome-extension://${id}/`]);
+      const messages: any[] = [], decoder = new NativeMessageDecoder();
+      child.stdout.on("data", data => messages.push(...decoder.push(data)));
+      const exit = once(child, "exit");
+      child.stdin.on("error", () => {}); child.stdin.end(encodeNativeMessage({ type: "config" }));
+      const [code] = await exit; return { code, messages };
+    };
+    try {
+      expect(await request(extensionId)).toEqual({ code: 0, messages: [{ type: "config", dotUrl }] });
+      expect(await request("b".repeat(32))).toEqual({ code: 1, messages: [] });
+      for (const name of ["dots-browser-host.lock", "dots-browser-state.json", "dots-browser-job.json", "dots-voice-events.jsonl"])
+        expect(existsSync(join(dir, ".dots-bridge", name))).toBe(false);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
   it("decodes split headers, multibyte Japanese text and concatenated messages", () => {
     const bytes = Buffer.concat([encodeNativeMessage({ text: "こんにちは🌸" }), encodeNativeMessage({ id: 2 })]);
     const decoder = new NativeMessageDecoder();
@@ -46,6 +67,17 @@ describe("Chrome native message transport", () => {
     try {
       send({ type: "ready", url: dotUrl });
       await wait(() => gateway.status.workerOnline);
+      // Opening extension settings must not take the live worker's lock or stop it.
+      const lock = readFileSync(join(dir, ".dots-bridge/dots-browser-host.lock"), "utf8");
+      const configChild = spawn(process.execPath, [join(dir, "scripts/dots-native-host.mjs"), `chrome-extension://${extensionId}/`]);
+      const configMessages: any[] = [], configDecoder = new NativeMessageDecoder();
+      configChild.stdout.on("data", data => configMessages.push(...configDecoder.push(data)));
+      const configExit = once(configChild, "exit");
+      configChild.stdin.end(encodeNativeMessage({ type: "config" }));
+      expect((await configExit)[0]).toBe(0);
+      expect(configMessages).toEqual([{ type: "config", dotUrl }]);
+      expect(readFileSync(join(dir, ".dots-bridge/dots-browser-host.lock"), "utf8")).toBe(lock);
+      expect(gateway.status.workerOnline).toBe(true);
       send({ type: "notification", sourceId: "idle-source", text: "入力なしの新着です" });
       await wait(() => messages.some(m => m.type === "notification-accepted" && m.sourceId === "idle-source"));
       expect(gateway.inbox.sync().items).toMatchObject([{ text: "入力なしの新着です" }]);

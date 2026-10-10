@@ -30,7 +30,8 @@
     "release:zip": "node scripts/release-zip.mjs",
     "release:stage": "node scripts/release-stage.mjs",
     "release:runtime": "node scripts/release-runtime.mjs",
-    "release:all": "npm run release:stage && npm run release:zip && npm run release:runtime && node scripts/release-checksums.mjs"
+    "release:all": "npm run release:stage && npm run release:zip && npm run release:chrome && npm run release:runtime && node scripts/release-checksums.mjs",
+    "release:chrome": "node scripts/release-chrome.mjs"
   },
   "dependencies": {
     "@evenrealities/even_hub_sdk": "0.0.15",

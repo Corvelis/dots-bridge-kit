@@ -4,6 +4,7 @@
   let port, current = null, observer, retry, readyTimer, watchObserver, watching = false, watchOnline = false;
   const watch = new globalThis.DotsMessageWatch(), historyWatch = new globalThis.DotsHistoryWatch(), outbox = new Map();
   let historyTimer, historyRetry, historyPending;
+  let callMonitoring = false, inactive = false;
   const rows = () => [...document.querySelectorAll("article.message-row .message-body[data-message-id]")];
   const textOf = row => row.querySelector(".message-text")?.innerText.trim() ?? "";
   const self = row => row.closest("article.message-row").classList.contains("self");
@@ -15,7 +16,6 @@
   const inputText = box => box instanceof HTMLTextAreaElement ? box.value : box.innerText;
   const post = message => { try { port?.postMessage(message); } catch { /* native host records uncertainty */ } };
   const callControl = new globalThis.DotsCallControl({ document, location, storage: sessionStorage, report: post });
-  callControl.monitor();
   const snapshot = (limit = Infinity) => rows().filter(row => limit === Infinity || row.querySelector(".message-text")?.textContent?.trim()).slice(-limit).map(row => ({ id: row.dataset.messageId, self: self(row), text: textOf(row), ...(row.dataset.messageId === current?.inputSourceId ? { inputId: current.id } : {}) }));
   function publishHistory(force = false) {
     if (!watchOnline || location.href !== watch.url) return;
@@ -119,7 +119,12 @@
     port.onMessage.addListener(message => {
       if (message.type === "voice.command") void callControl.execute(message);
       else if (message.type === "job") input(message);
-      else if (message.type === "watch-ready") { callControl.connected(); watchOnline = true; publishHistory(true); flushNotifications(); observeAll(); }
+      else if (message.type === "watch-ready") {
+        startWatch();
+        if (!callMonitoring) { callMonitoring = true; callControl.monitor(); }
+        callControl.connected(); watchOnline = true; publishHistory(true); flushNotifications(); observeAll();
+      }
+      else if (message.type === "inactive") inactive = true;
       else if (message.type === "history-accepted") { if (historyPending?.revision === message.revision) { historyPending = undefined; clearTimeout(historyRetry); } }
       else if (message.type === "history-error") { if (historyPending?.revision === message.revision) { historyPending = undefined; clearTimeout(historyRetry); } console.warn("Dot history sync: " + message.message); }
       else if (message.type === "notification-accepted") outbox.delete(message.sourceId);
@@ -127,16 +132,16 @@
       else if (message.type === "error") { watchOnline = false; clearTimeout(historyTimer); historyTimer = undefined; clearTimeout(historyRetry); finish(); current = null; }
     });
     port.onDisconnect.addListener(() => {
-      callControl.disconnect();
+      if (callMonitoring) callControl.disconnect();
       watchOnline = false; clearTimeout(historyTimer); historyTimer = undefined; clearTimeout(historyRetry); finish(); current = null; clearInterval(readyTimer);
       try { void chrome.runtime.lastError; if (!chrome.runtime.id) return; } catch { return; }
-      retry = setTimeout(connect, 5000);
+      if (!inactive) retry = setTimeout(connect, 5000);
     });
-    const ready = () => { if (composer() && sendButton() && rows().length) { clearInterval(readyTimer); startWatch(); post({ type: "ready" }); } };
+    const ready = () => { if (composer() && sendButton() && rows().length) { clearInterval(readyTimer); post({ type: "ready" }); } };
     readyTimer = setInterval(ready, 1000); ready();
   }
   addEventListener("pagehide", () => {
-    callControl.close();
+    if (callMonitoring) callControl.close();
     finish(); watchObserver?.disconnect(); clearTimeout(historyTimer); clearTimeout(historyRetry); document.removeEventListener("scroll", scheduleHistory, true); clearTimeout(retry); clearInterval(readyTimer);
     try { port?.disconnect(); } catch { /* Extension was reloaded or removed. */ }
   });

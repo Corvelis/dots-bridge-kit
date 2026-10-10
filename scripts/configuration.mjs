@@ -1,7 +1,8 @@
-import { randomBytes, randomInt, generateKeyPairSync, createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, chmodSync } from "node:fs";
+import { randomBytes, randomInt } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { copyChromeExtension } from "./chrome-extension.mjs";
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const hostName = "org.dotsbridgekit.chrome";
@@ -68,29 +69,21 @@ export function prepare({ dotUrl, phoneHost, requestedPort }, base = root) {
   const pairing = { token: prior?.token ?? randomBytes(32).toString("hex"), phoneHost, port, ports: selectedPorts,
     bridgeUrl: "ws://" + phoneHost + ":" + port + "/ws", networkMode: "custom" };
   writeFileSync(pairingPath, JSON.stringify(pairing, null, 2), { mode: 0o600 });
-  const keyPath = resolve(state, "extension-public-key");
-  const key = existsSync(keyPath) ? readFileSync(keyPath, "utf8")
-    : generateKeyPairSync("rsa", { modulusLength: 2048 }).publicKey.export({ type: "spki", format: "der" }).toString("base64");
-  writeFileSync(keyPath, key, { mode: 0o600 });
-  const extensionId = [...createHash("sha256").update(Buffer.from(key, "base64")).digest().subarray(0, 16)]
-    .flatMap(byte => [byte >> 4, byte & 15]).map(n => String.fromCharCode(97 + n)).join("");
+  const installPath = resolve(state, "dots-browser-install.json");
+  const previous = existsSync(installPath) ? JSON.parse(readFileSync(installPath, "utf8")) : {};
   const extension = resolve(base, "build/extension");
-  cpSync(resolve(base, "browser/dots-bridge"), extension, { recursive: true });
-  const manifest = { manifest_version: 3, name: "Dots Bridge Kit", version: "0.2.6", key,
-    description: "Connect your existing Dot to your local text and voice bridges.",
-    permissions: ["nativeMessaging"], host_permissions: [dotUrl],
-    background: { service_worker: "background.js", type: "module" },
-    content_scripts: [{ matches: [dotUrl], js: ["watch.js", "call-control.js", "content.js"], run_at: "document_idle" }],
-    action: { default_title: "Dots Bridge Kit — open your Dot" } };
-  writeFileSync(resolve(extension, "manifest.json"), JSON.stringify(manifest, null, 2));
-  writeFileSync(resolve(extension, "settings.js"), "export const DOT_URL = " + JSON.stringify(dotUrl) + ";\n");
+  const { extensionId } = copyChromeExtension(base, extension);
+  // Keep the prior local identity authorized while upgrading to the shared ZIP.
+  const legacyId = [previous.extensionId, ...(Array.isArray(previous.extensionIds) ? previous.extensionIds : [])]
+    .find(id => typeof id === "string" && /^[a-p]{32}$/.test(id) && id !== extensionId);
+  const extensionIds = legacyId ? [extensionId, legacyId] : [extensionId];
   const launcher = resolve(state, "dots-native-host");
   const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
   writeFileSync(launcher, "#!/bin/sh\nexec " + quote(process.execPath) + " " + quote(resolve(base, "scripts/dots-native-host.mjs")) + ' "$@"\n', { mode: 0o700 });
   chmodSync(launcher, 0o700);
   const nativeManifest = { name: hostName, description: "Dots Bridge Kit native messaging host",
-    path: launcher, type: "stdio", allowed_origins: ["chrome-extension://" + extensionId + "/"] };
+    path: launcher, type: "stdio", allowed_origins: extensionIds.map(id => "chrome-extension://" + id + "/") };
   writeFileSync(resolve(state, "dots-native-manifest.json"), JSON.stringify(nativeManifest, null, 2), { mode: 0o600 });
-  writeFileSync(resolve(state, "dots-browser-install.json"), JSON.stringify({ extensionId, dotUrl, extension, hostName }), { mode: 0o600 });
+  writeFileSync(installPath, JSON.stringify({ extensionId, extensionIds, dotUrl, extension, hostName }), { mode: 0o600 });
   return { extension, extensionId, phoneHost, port };
 }

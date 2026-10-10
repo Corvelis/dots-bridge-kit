@@ -16,3 +16,4 @@ jobs:
       - run: npm run build
       - run: npm run release:check
       - run: npm run release:stage
+      - run: npm run release:chrome
