@@ -3,6 +3,7 @@
 Dots Bridge Kit exposes your existing Dot in a normal Chrome tab to apps and devices through a local Mac bridge. WebSocket APIs provide text, history, notifications, speech recognition, and voice-call control with audio input/output. An Even G2 app is included.
 
 This guide walks through the G2 setup. For a custom client, complete setup steps 1–3, then use the [external-app API guide](protocols.md). The G2 app UI is Japanese; this guide names the buttons shown on screen.
+[Screen examples](../README.md#g2とスマホの画面) include a real G2 photo and the phone UI; phone screenshots use the public app's browser preview with example data.
 
 ![Connection overview](images/connection.svg)
 

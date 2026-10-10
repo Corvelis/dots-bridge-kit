@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 // @ts-expect-error Release scripts also run directly in Node.
-import { checkRelease, sourceFiles } from "../scripts/release-check.mjs";
+import { checkRelease, sourceFiles, inspectReleaseImage } from "../scripts/release-check.mjs";
 // @ts-expect-error Shared setup paths are supplied by a JavaScript module.
 import { root } from "../scripts/configuration.mjs";
 
@@ -31,7 +31,7 @@ describe("release privacy boundary", () => {
   it("requires an explicit inventory and rejects traversal, excluded state and non-source formats", () => {
     const dir = fixture(); rmSync(join(dir, "release-files.json"));
     expect(() => sourceFiles(dir)).toThrow("inventory");
-    for (const file of ["../outside.md", ".dots-bridge/pairing.json", "build/private.js", "recording.wav", "key.pem"]) {
+    for (const file of ["../outside.md", ".dots-bridge/pairing.json", "build/private.js", "recording.wav", "key.pem", "photo.jpg"]) {
       inventory(dir, [file]); expect(() => sourceFiles(dir)).toThrow("inventory");
     }
   });
@@ -124,6 +124,23 @@ describe("release privacy boundary", () => {
     for (const bytes of [Buffer.from([0, 1, 2]), Buffer.from([255, 254])]) {
       writeFileSync(join(dir, "README.md"), bytes); expect(() => checkRelease(dir)).toThrow();
     }
+  });
+  it("allows reviewed documentation JPEGs but rejects metadata, trailing data and invalid images without exposing content", () => {
+    const dir = fixture(), name = "docs/images/g2-device.jpg";
+    mkdirSync(join(dir, "docs/images"), { recursive: true }); inventory(dir, ["README.md", name]);
+    const photo = readFileSync(resolve(root, name));
+    writeFileSync(join(dir, name), photo);
+    expect(inspectReleaseImage(photo)).toEqual({ width: 588, height: 1280 });
+    expect(checkRelease(dir).ok).toBe(true);
+    const privateValue = randomBytes(32).toString("hex"), payload = Buffer.from("Exif\0" + privateValue);
+    const header = Buffer.from([255, 225, 0, 0]); header.writeUInt16BE(payload.length + 2, 2);
+    writeFileSync(join(dir, name), Buffer.concat([photo.subarray(0, 2), header, payload, photo.subarray(2)]));
+    let error = ""; try { checkRelease(dir); } catch (caught) { error = String(caught); }
+    expect(error).toContain("metadata"); expect(error).not.toContain(privateValue);
+    writeFileSync(join(dir, name), Buffer.concat([photo, Buffer.from(privateValue)]));
+    expect(() => checkRelease(dir)).toThrow("Invalid documentation image");
+    writeFileSync(join(dir, name), Buffer.from([255, 216, 255, 217]));
+    expect(() => checkRelease(dir)).toThrow("Invalid documentation image");
   });
   it("creates a clean source-only GitHub folder and refuses to overwrite Git history", () => {
     const dir = fixture(), scripts = ["configuration.mjs", "release-check.mjs", "release-stage.mjs"];

@@ -7,6 +7,15 @@ Chrome拡張でDotと連携し、WebSocket APIでテキスト・通知・履歴�
 
 ![Even G2を使う構成例：G2とスマホからMacブリッジを経由してChromeのDotに接続](docs/images/connection.svg)
 
+## G2とスマホの画面
+
+<p>
+  <img src="docs/images/g2-device.jpg" alt="G2の実機表示：左にキャラとREADY、右にDotの文章" width="250">
+  <img src="docs/images/phone-ready.jpg" alt="スマホ画面の表示例：待機状態、入力モード、録音と表示の操作" width="250">
+</p>
+
+左はG2の実機写真、右は公開版アプリのブラウザプレビューです。G2は左にキャラと状態、右に文章を表示します。スマホでは入力モード・状態・操作を確認できます。スマホの画像は説明用データを使用しています。[操作とASRの送信確認画面](docs/g2-controls.md)
+
 ## ブリッジでできること
 
 Macの接続先は1つで、用途ごとにWebSocketのパスを選びます。

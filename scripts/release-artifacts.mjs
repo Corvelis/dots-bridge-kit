@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, lstatSync } from "node:fs";
 import { resolve, relative, dirname, sep } from "node:path";
 import { createHash } from "node:crypto";
-import { inspectReleaseText, privateRules, dependencyText } from "./release-check.mjs";
+import { inspectReleaseText, inspectReleaseImage, privateRules, dependencyText } from "./release-check.mjs";
 
 export function artifactFiles(base) {
   const files = [];
@@ -22,8 +22,10 @@ export function checkArtifactDocumentation(base) {
   let links = 0;
   for (const name of files.filter(name => name.endsWith(".md"))) {
     const document = resolve(base, name);
-    for (const match of readFileSync(document, "utf8").matchAll(/!?\[[^\]\n]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
-      const link = match[1];
+    const text = readFileSync(document, "utf8");
+    const markdown = [...text.matchAll(/!?\[[^\]\n]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)].map(match => match[1]);
+    const images = [...text.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)].map(match => match[1]);
+    for (const link of [...markdown, ...images]) {
       if (/^[a-z][a-z0-9+.-]*:/i.test(link) || link.startsWith("#")) continue;
       const target = decodeURIComponent(link.split("#")[0]);
       if (!paths.has(resolve(dirname(document), target))) throw new Error("Missing local documentation link");
@@ -55,6 +57,10 @@ export function checkArtifactDirectory(base, expected, { forbiddenStrings = priv
       || /(?:^|\/)(?:\.env(?!\.example$)|pairing\.json)|\.(?:log|jsonl|ehpk)$/.test(name)) throw new Error("Unsafe artifact filename");
     const bytes = readFileSync(resolve(base, name));
     if (bytes.length > 64 * 1024 * 1024) throw new Error("Oversized artifact file");
+    if (name.endsWith(".jpg")) {
+      if (!/^docs\/images\/[A-Za-z0-9_.-]+\.jpg$/.test(name)) throw new Error("Unsafe documentation image path");
+      inspectReleaseImage(bytes);
+    }
     // Scan UTF-8 and UTF-16 identities in native executables, without printing matches.
     const identities = bytes.toString("utf8") + "\n" + bytes.toString("utf16le");
     const normalized = identities.normalize("NFKC").toLowerCase();

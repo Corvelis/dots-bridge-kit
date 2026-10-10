@@ -49,14 +49,24 @@ describe("compiled release privacy", () => {
     expect(() => checkRuntimeManifest(dir)).toThrow("Invalid runtime manifest");
     save(manifest); writeFileSync(join(dir, "notes.md"), "unlisted"); expect(() => checkRuntimeManifest(dir)).toThrow("inventory");
   });
+  it("applies the same metadata boundary to documentation images in runtime artifacts", () => {
+    const dir = fixture(), name = "docs/images/g2-device.jpg";
+    mkdirSync(join(dir, "docs/images"), { recursive: true });
+    const photo = readFileSync(new URL("../docs/images/g2-device.jpg", import.meta.url));
+    writeFileSync(join(dir, name), photo);
+    expect(checkArtifactDirectory(dir, [name]).ok).toBe(true);
+    const payload = Buffer.from("Exif\0metadata"), header = Buffer.from([255, 225, 0, 0]); header.writeUInt16BE(payload.length + 2, 2);
+    writeFileSync(join(dir, name), Buffer.concat([photo.subarray(0, 2), header, payload, photo.subarray(2)]));
+    expect(() => checkArtifactDirectory(dir, [name])).toThrow("metadata");
+  });
 });
 describe("release documentation", () => {
   it("resolves bundled guides, images and encoded filenames while ignoring web links and anchors", () => {
     const dir = fixture(); mkdirSync(join(dir, "docs/images"), { recursive: true });
-    writeFileSync(join(dir, "README.md"), '[Guide](docs/Call%20Guide.md#voice) ![Diagram](docs/images/setup.svg) [Web](https://example.invalid) [Section](#setup)');
+    writeFileSync(join(dir, "README.md"), '[Guide](docs/Call%20Guide.md#voice) ![Diagram](docs/images/setup.svg) <img src="docs/images/setup.svg" width="300"> [Web](https://example.invalid) [Section](#setup)');
     writeFileSync(join(dir, "docs/Call Guide.md"), '[Home](../README.md)');
     writeFileSync(join(dir, "docs/images/setup.svg"), '<svg/>');
-    expect(checkArtifactDocumentation(dir)).toEqual({ ok: true, links: 3 });
+    expect(checkArtifactDocumentation(dir)).toEqual({ ok: true, links: 4 });
   });
   it("rejects a guide or image missing from the release even when all included files are present", () => {
     const dir = fixture(); mkdirSync(join(dir, "docs"));
@@ -65,6 +75,8 @@ describe("release documentation", () => {
     mkdirSync(join(dir, "call")); writeFileSync(join(dir, "call/README.md"), 'Call API');
     expect(checkArtifactDocumentation(dir).links).toBe(1);
     writeFileSync(join(dir, "docs/protocols.md"), '![Setup](images/setup.svg)');
+    expect(() => checkArtifactDocumentation(dir)).toThrow("Missing local documentation link");
+    writeFileSync(join(dir, "docs/protocols.md"), '<img src="images/setup.svg" width="300">');
     expect(() => checkArtifactDocumentation(dir)).toThrow("Missing local documentation link");
   });
 });

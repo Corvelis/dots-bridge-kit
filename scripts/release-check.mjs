@@ -6,7 +6,7 @@ import { root } from "./configuration.mjs";
 
 const inventoryName = "release-files.json";
 const excluded = new Set([".git", "node_modules", "build", "dist-dots-phone-g2", ".dots-bridge", ".state", ".swift-cache", ".build", "bin", "dist", "coverage"]);
-const sourceExtensions = new Set([".ts", ".js", ".mjs", ".mts", ".json", ".md", ".swift", ".html", ".css", ".yml", ".plist", ".svg"]);
+const sourceExtensions = new Set([".ts", ".js", ".mjs", ".mts", ".json", ".md", ".swift", ".html", ".css", ".yml", ".plist", ".svg", ".jpg"]);
 const specialSources = new Set([".env.example", ".gitignore", ".nvmrc", "LICENSE"]);
 const loopback = new Set(["127.0.0.1", "0.0.0.0", "::", "::1", "::ffff:127.0.0.1"]);
 const publicHosts = new Set(["chatgpt.com", "github.com", "nodejs.org", "www.apple.com", "developer.chrome.com",
@@ -24,6 +24,50 @@ function utf8(path) {
   catch { throw new Error("Invalid UTF-8 release source"); }
 }
 
+/** Reviewed documentation JPEGs must contain image data only, with no EXIF or other metadata. */
+export function inspectReleaseImage(bytes) {
+  const invalid = () => { throw new Error("Invalid documentation image"); };
+  if (bytes.length < 4 || bytes.length > 2 * 1024 * 1024 || bytes[0] !== 255 || bytes[1] !== 216) invalid();
+  let offset = 2, scan = false, hasScan = false, dimensions;
+  while (offset < bytes.length) {
+    if (scan) {
+      while (offset < bytes.length) {
+        if (bytes[offset] !== 255) { offset++; continue; }
+        let next = offset + 1;
+        while (bytes[next] === 255) next++;
+        if (next >= bytes.length) invalid();
+        if (bytes[next] === 0 || bytes[next] >= 208 && bytes[next] <= 215) { offset = next + 1; continue; }
+        break;
+      }
+      scan = false;
+    }
+    if (bytes[offset] !== 255) invalid();
+    while (bytes[offset] === 255) offset++;
+    const marker = bytes[offset++];
+    if (marker === 217) {
+      if (!dimensions || !hasScan || offset !== bytes.length) invalid();
+      return dimensions;
+    }
+    if (marker >= 224 && marker <= 239 || marker === 254) throw new Error("Image metadata must be removed");
+    if (![192, 193, 194, 196, 219, 221, 218].includes(marker) || offset + 2 > bytes.length) invalid();
+    const length = bytes.readUInt16BE(offset);
+    if (length < 2 || offset + length > bytes.length) invalid();
+    if ([192, 193, 194].includes(marker)) {
+      if (dimensions || length < 11 || bytes[offset + 2] !== 8) invalid();
+      const height = bytes.readUInt16BE(offset + 3), width = bytes.readUInt16BE(offset + 5), channels = bytes[offset + 7];
+      if (![1, 3].includes(channels) || length !== 8 + 3 * channels || !width || !height
+        || width > 4096 || height > 8192 || width * height > 16 * 1024 * 1024) invalid();
+      dimensions = { width, height };
+    }
+    if (marker === 218) {
+      if (!dimensions || length < 6 || length !== 6 + 2 * bytes[offset + 2]) invalid();
+      scan = true; hasScan = true;
+    }
+    offset += length;
+  }
+  return invalid();
+}
+
 /** Only explicitly reviewed files can enter a release, never a directory glob. */
 export function sourceFiles(base = root) {
   let manifest;
@@ -35,7 +79,8 @@ export function sourceFiles(base = root) {
   for (const name of manifest.files) {
     if (typeof name !== "string" || name.includes("\\") || name.startsWith("/") || name.split("/").some(part =>
       !part || part === "." || part === ".." || !/^[A-Za-z0-9_.-]+$/.test(part) || excludedName(part))
-      || !sourceExtensions.has(extname(name)) && !specialSources.has(name)) throw new Error("Unsafe release inventory entry");
+      || !sourceExtensions.has(extname(name)) && !specialSources.has(name)
+      || name.endsWith(".jpg") && !/^docs\/images\/[A-Za-z0-9_.-]+\.jpg$/.test(name)) throw new Error("Unsafe release inventory entry");
     let path = resolve(base);
     try {
       const parts = name.split("/");
@@ -127,7 +172,12 @@ export function checkRelease(base = root, { forbiddenStrings = privateRules() } 
   const problems = [], files = sourceFiles(base), approved = new Set(files);
   if (actualSourceFiles(base).some(name => !approved.has(name))) problems.push({ rule: "unlisted source file" });
   for (const name of files) {
-    let text = utf8(resolve(base, name));
+    let text;
+    if (name.endsWith(".jpg")) {
+      const bytes = readFileSync(resolve(base, name));
+      inspectReleaseImage(bytes);
+      text = (bytes.toString("latin1").match(/[\x20-\x7e]{4,}/g) ?? []).join("\n");
+    } else text = utf8(resolve(base, name));
     if (name === "package-lock.json") text = dependencyText(text);
     if (name.endsWith(".svg") && /<script\b|<foreignObject\b|\bon[a-z]+\s*=|(?:href|src)\s*=\s*["'](?!#)|<!ENTITY/i.test(text))
       problems.push({ file: name, rule: "active or external image content" });
