@@ -3,6 +3,7 @@
 ## 0.1.0 public release kit
 
 - Configurable Dot URL and Mac host, one public bridge port and one start/stop command.
+- Authenticated WebSocket APIs for custom apps and devices; the included Even G2 app uses the same text, ASR and voice-call interfaces.
 - Generated Chrome extension and native host scoped to the user's own Dot.
 - Runtime phone pairing, with no token embedded in the G2 package.
 - Standalone Dots ASR/text service with transcript review and displayed Dot replies.

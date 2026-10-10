@@ -1,7 +1,18 @@
 # 外部アプリ連携
 
+Macブリッジは、独自のスマホアプリ・PCアプリ・デバイス向けクライアントから利用できます。以下のAPIにEven G2やEven SDKは必要ありません。付属G2アプリも同じAPIを使います。
+
+まず [導入ガイド](getting-started.md) の手順1〜3でMacブリッジとChrome拡張を用意し、`npm run token` で自分のペアリングトークンを取得します。通話には同ガイドの「通話を試す」手順1のBlackHole設定と、Macの画面／システム音声収録の許可も必要です。
+
 すべて **ws://YOUR_MAC_HOST:8799** の同じ接続先を使い、用途ごとにパスを選びます。[ポート変更と設定](configuration.md)
-トークンはsetupで生成されたものを使用してください。
+クライアントはWebSocketのJSONメッセージを実装し、音声機能ではPCMバイナリの送受信・マイク録音・音声再生も用意します。
+
+| 用途 | パス | メッセージ形式 |
+| --- | --- | --- |
+| テキスト送信・返答・会話履歴・通知 | `/dots/ws` | JSON RPCとイベント |
+| 通話の制御・音声入出力 | `/voice/ws` | JSON RPCとイベント、PCMバイナリ |
+| 音声認識・送信前確認・Dotとのテキスト対話 | `/ws` | `echo.*`イベント、入力PCMバイナリ |
+
 HTTPの /health は {ok, version, components:{relay,voice,text}} を返します。okは全ワーカーが起動している状態で、ChromeやASRの利用可否は各componentsの状態を確認します。
 
 ## テキスト・通知
@@ -30,6 +41,12 @@ requestIdと本文を送信前に保存し、切断やタイムアウトでは�
 
 入力12,000文字、返答24,000文字、通知保存1,024件です。画像・添付・過去のChatGPT会話全体の取得には対応していません。
 
+### 会話順の履歴同期
+
+`/dots/ws`で、`dots.ready` / `status` の `conversationHistory: true` に対応するクライアントは、`history/sync`（空パラメータ）で `{epoch, revision, ready, gap, items}` を取得し、以後の `dots.history`（`history`に同じ形式）を購読します。`items`はDots画面の会話順です。各要素は `{id, sourceId, role, text, sequence:0, receivedAt, inputId?}`。IDは`dom:<sourceId>`、`role`は`user`または`assistant`です。`receivedAt`は観測時刻で、発言時刻ではありません。並べ替えには使わず、スナップショットで表示キャッシュを置き換えます。同じ`epoch`の古い`revision`は無視します。
+
+最新100件・240 KiB以内で、文章を途中で切らず古いメッセージから落とします。`ready:false`は拡張から初回履歴がまだ届いていない状態です。`gap:true`は保存上限や表示範囲の作り直しにより過去の範囲が欠けたことを示します。Chromeで読み込まれた会話だけを対象にし、Dots全履歴の取得は行いません。過去の追加読み込みは共有メッセージIDでつなぎます。新着通知のカーソルと独立しており、履歴同期だけでは点灯・音声再生を開始しません。
+
 ## 通話
 
 /voice/ws に接続し、5秒以内に認証します。resumeKeyは端末側で生成した32バイトのランダム値を64文字の小文字16進数で保存します。clientIdは接続ごとにサーバーから受け取ります。
@@ -44,28 +61,21 @@ session.startで作った自分の通話だけを制御し、手動で始まっ�
 session.startにパラメータは不要です。PCM仕様の詳細は [通話プロトコル](../dots-voice-bridge/README.md) を参照してください。
 
 入力は16kHz・モノラル・signed PCM16 little-endianのバイナリです。
-出力は audio.chunk のメタデータの直後に、指定byteLengthのバイナリが続きます。
+出力は audio.chunk のメタデータの直後に、指定byteLengthのバイナリが続きます。再生にはメタデータのsampleRate・channelsを使用します。
 古い音声が混雑した場合はキューを間引きます。回線復旧で通話を再開しても、PTTは新しく操作します。
 
-## G2 ASR・テキスト
+## 音声認識（ASR）・テキスト対話
 
 /ws へ {"type":"hello","version":16,"client":"dots","token":"YOUR_TOKEN"} で接続します。
 echo.snapshot のconfig.dedicatedDots、dotsReady、asrReadyを確認します。
-echo.voice.start を送り、echo.state のphaseが listening になってから16kHzモノラルPCMを送り、echo.voice.stopで録音を終了します。
+echo.voice.start を送り、echo.state のphaseが listening になってから16kHz・モノラル・signed PCM16 little-endianのバイナリを送り、echo.voice.stopで録音を終了します。録音できるクライアントは同時に1つです。
 reviewTranscript:true を指定すると、echo.transcript のawaitingConfirmationで停止します。
 echo.transcript.submit と対応するturnIdを送ると、確認中の認識結果をDotへ送信します。
 echo.text.submit とtextを送ると、文字列を直接送信できます。
 
 echo.state は idle / listening / transcribing / thinking / error を通知します。
-echo.transcript が認識結果、echo.reply がDotの文章、echo.done が応答処理の完了です。
+echo.transcript が認識結果、echo.reply がDotの文章、echo.done が応答処理の完了です。この経路の返答はテキストです。
 echo.cancel は録音・確認中の認識結果・ローカルの返答待ちを取り消します。Dotへ渡った入力を取り消すものではありません。
 
 echo.notification の内容を表示してから、echo.notification.displayed と同じturnId・notificationIdを返します。
 サーバーは表示の確認後に通知位置を保存します。表示前に切断した通知は再接続後に届けます。
-
-
-### 会話順の履歴同期
-
-`dots.ready` / `status` の `conversationHistory: true` に対応するクライアントは、`history/sync`（空パラメータ）で `{epoch, revision, ready, gap, items}` を取得し、以後の `dots.history`（`history`に同じ形式）を購読します。`items`はDots画面の会話順です。各要素は `{id, sourceId, role, text, sequence:0, receivedAt, inputId?}`。IDは`dom:<sourceId>`、`role`は`user`または`assistant`です。`receivedAt`は観測時刻で、発言時刻ではありません。並べ替えには使わず、スナップショットで表示キャッシュを置き換えます。同じ`epoch`の古い`revision`は無視します。
-
-最新100件・240 KiB以内で、文章を途中で切らず古いメッセージから落とします。`ready:false`は拡張から初回履歴がまだ届いていない状態です。`gap:true`は保存上限や表示範囲の作り直しにより過去の範囲が欠けたことを示します。Chromeで読み込まれた会話だけを対象にし、Dots全履歴の取得は行いません。過去の追加読み込みは共有メッセージIDでつなぎます。新着通知のカーソルと独立しており、履歴同期だけでは点灯・音声再生を開始しません。

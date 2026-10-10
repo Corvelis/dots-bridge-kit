@@ -2,7 +2,7 @@
   "name": "dots-bridge-kit",
   "version": "0.1.0",
   "private": true,
-  "description": "A configurable Chrome, macOS and Even G2 bridge for your existing Dot.",
+  "description": "A local bridge connecting your Dot to apps and devices through text, speech recognition and voice-call APIs. Includes an Even G2 app.",
   "type": "module",
   "license": "MIT",
   "engines": {

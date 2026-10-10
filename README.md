@@ -1,14 +1,29 @@
 # Dots Bridge Kit
 
-Chromeで開いた自分のDotと、スマホ・Even G2をつなぐセットです。
-G2の長押しで話し、音声をテキストとして送るか、Dotと通話できます。返答・自分の入力・新着通知をグラスで確認できます。
+Chromeで開いた自分のDotを、外部のアプリやデバイスから使うためのローカルMacブリッジです。
+Chrome拡張でDotと連携し、WebSocket APIでテキスト・通知・履歴・音声認識・通話の制御と音声入出力を提供します。
 
-![接続の構成：G2とスマホからMacブリッジを経由してChromeのDotに接続](docs/images/connection.svg)
+**Even G2用アプリも付属します。** G2の長押しで話し、音声をテキストとして送るか、Dotと通話できます。返答・自分の入力・新着通知をグラスで確認できます。
+
+![Even G2を使う構成例：G2とスマホからMacブリッジを経由してChromeのDotに接続](docs/images/connection.svg)
+
+## ブリッジでできること
+
+Macの接続先は1つで、用途ごとにWebSocketのパスを選びます。
+
+| 機能 | パス |
+| --- | --- |
+| テキスト送信・返答・会話履歴・新着通知 | `/dots/ws` |
+| 通話の開始・終了、音声入力のオン・オフ、Dotの音声受信 | `/voice/ws` |
+| 音声→テキスト、認識結果の送信前確認、Dotへの送信と返答 | `/ws` |
+
+独自のスマホアプリ・PCアプリ・デバイス向けクライアントでも使えます。クライアント側でトークン認証と各APIを実装し、音声を扱う場合は指定のPCM形式で送受信します。[外部アプリ向けの接続・API仕様](docs/protocols.md)
 
 ## まず使ってみる
 
 **[初めての導入ガイド](docs/getting-started.md)** に、ダウンロードから最初の会話までをまとめています。
 ターミナルでのセットアップとChrome拡張の登録が必要です。
+独自クライアントで使う場合は、ガイドの手順1〜3でMacブリッジを用意してから、[API仕様](docs/protocols.md)へ進んでください。
 
 | ダウンロードするもの | 用途 |
 | --- | --- |
@@ -24,11 +39,11 @@ Intel Macではソースからビルドしてください。
 
 - **macOS 26以降**、Google Chrome、[Node.js 24 LTS](https://nodejs.org/en/download)。音声認識はMacの対応ハードウェア・言語にも依存します。
 - ChatGPTにログインし、利用できるDot。通話にはDot側の電話機能が必要です。
-- Even G2とEven App **2.2.10以降**。アプリの表示言語は日本語です。
-- スマホとMacが通信できるLAN／VPN。外出先からはTailscaleなどで接続できます。[外出先での設定](docs/configuration.md#外出先から使うtailscaleなどのvpn)。Macは起動したままにします。
+- クライアントとMacが通信できるLAN／VPN。外出先からはTailscaleなどで接続できます。[外出先での設定](docs/configuration.md#外出先から使うtailscaleなどのvpn)。Macは起動したままにします。
 - 通話を使う場合は [BlackHole 2ch](https://github.com/ExistentialAudio/BlackHole)。音声→テキストだけなら不要です。
+- 付属G2アプリを使う場合はEven G2とEven App **2.2.10以降**。アプリの表示言語は日本語です。
 
-## 日常の操作
+## 付属G2アプリの操作
 
 初期設定は **音声→テキスト／キャラ固定／30秒で自動消灯**。接続先・左右の操作・表示設定は保存されます。
 
