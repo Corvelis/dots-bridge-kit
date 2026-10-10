@@ -15,3 +15,4 @@
 - While an ASR draft is displayed for confirmation, hold either G2 temple or R1 to send; double tap to discard and keep the display awake. Other states retain their usual controls.
 - Source ZIP, compiled Apple Silicon Mac runtime ZIP and checksums; G2 packages and Chrome extension permissions are generated for each user's endpoints.
 - Guided setup, connection diagnostics and background start/stop commands.
+- Tailscale/VPN setup for access away from home, including the Mac endpoint, G2 package updates and a mobile-data connection check.

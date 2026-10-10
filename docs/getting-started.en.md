@@ -21,6 +21,8 @@ npm run setup
 
 Enter your Dot URL from Chrome and a Mac hostname/IP reachable from the phone, without a scheme or port. The token and extension identity are generated locally and preserved when you rerun setup.
 
+**Away from home:** Install [Tailscale](https://tailscale.com/download) on the Mac and phone and connect both to the same account/network. Use the Mac's Tailscale IPv4 address as the setup host, then follow the remaining steps. The phone runs the VPN; G2 connects through Even App. Keep the VPN connected on both devices and the Mac awake with the bridge and Dot running. Before leaving, turn off phone Wi-Fi and check `http://YOUR_MAC_HOST:8799/` over mobile data. If changing an existing LAN setup, stop the bridge, rerun setup, repack/reinstall G2, update the phone endpoint and start the bridge again; the token is preserved. [Detailed connection steps](configuration.md#外出先から使うtailscaleなどのvpn)
+
 2. Run `npm run chrome:install`. In Chrome, open `chrome://extensions`, enable Developer mode, and load **build/extension**. Keep your configured Dot open in a normal tab.
 3. Run `npm run services:start`, reload the Dot tab, then run `npm run doctor`. Bridge/extension/call-control/ASR checks should be OK. On the phone, confirm that `http://YOUR_MAC_HOST:8799/` opens; replace YOUR_MAC_HOST with your own setup value.
 4. Run `npm run pack:g2`. Upload `build/dots-phone-g2-0.2.25.ehpk` to your Even Hub project's **Private builds**. In Even App, use **Even Hub → Developer Mode → Me → Apps → Private builds → Install**, as described in the [official guide](https://hub.evenrealities.com/docs/test/private-testing). If the package ID is taken, repack with `npm run pack:g2 -- --package-id org.example.dotsphone`, replacing the example with your own unique ID.

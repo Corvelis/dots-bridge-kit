@@ -25,6 +25,7 @@ npm run setup
 | Macのホスト名／IP | スマホから届くMacのホスト名、LANのIP、またはVPNの接続先。`ws://` やポートは付けない |
 
 LANのIPはMacの「システム設定 → Wi-Fi → 接続先の詳細 → TCP/IP」で確認できます。
+**外出先でも使う場合は、先にMacとスマホをTailscaleなどのVPNで接続し、MacのVPN IPを入力します。** VPNを使うのはMacとスマホで、G2はEven App経由でつながります。[Tailscaleの手順と接続確認](configuration.md#外出先から使うtailscaleなどのvpn)
 セットアップに表示された `ws://YOUR_MAC_HOST:8799` がスマホの接続先です。以降の `YOUR_MAC_HOST` は自分が入力した値に置き換えます。
 トークンは自動生成され、この段階では表示しません。
 

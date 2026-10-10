@@ -32,6 +32,21 @@ YOUR_DOT_URL、YOUR_MAC_HOSTは実際の値に置き換えます。
 内部の通話・テキスト・ASRワーカーはlocalhostだけで待ち受け、まとめて起動・停止されます。
 Chromeのネイティブワーカーは専用の別トークンを使用し、その制御経路を公開ポートへ転送しません。
 
+## 外出先から使う（TailscaleなどのVPN）
+
+外のスマホから自宅のMacへ届くVPNを使えば、同じブリッジへ接続できます。Tailscaleを使う場合は次の順です。
+
+1. [Tailscale](https://tailscale.com/download) をMacとスマホに導入し、同じアカウントで同じVPNネットワークへ接続します。G2へのインストールは不要です。
+2. Tailscaleの端末一覧で **MacのVPN IP（IPv4）** を確認します。自宅LANのIPやスマホのIPではなく、Macに割り当てられた値を使います。[公式の接続手順](https://tailscale.com/docs/how-to/connect-to-devices)
+3. 初回セットアップの「Macのホスト名／IP」にその値を入れ、その後は [導入ガイド](getting-started.md) どおりにG2パッケージを作って導入します。スマホの接続先は `ws://YOUR_MAC_VPN_IP:8799` です。`YOUR_MAC_VPN_IP` は自分のMacの値に置き換えます。
+4. 外出中もMacとスマホのVPNをオンにします。Macをスリープさせず、ブリッジとChromeのDotを起動しておきます。VPN接続中は自宅でも外出先でも同じURLを使えます。
+
+**外出前の確認：** スマホのWi-Fiをオフにし、モバイル通信とVPNをオンにして、`http://YOUR_MAC_VPN_IP:8799/` が開けるか確認します。開けたらEven Appでも接続を確認します。ポートを変更した場合は、そのポート番号に置き換えます。
+
+LANの設定から変更する場合は、通話を終了して `npm run services:stop` を実行し、`npm run setup` でDotのURLとMacのVPN IPを設定し直します。`npm run pack:g2` で作り直したパッケージを同じアプリIDでインストールし、スマホの「Macへの接続設定」も更新します。`npm run services:start` で起動し、Chrome拡張とDotタブを再読み込みしてください。既存のペアリングトークンは引き継ぎます。
+
+他のVPNでも、スマホからMacのホスト名／IPとブリッジのポートへ届く構成なら同様に使えます。
+
 ## 起動・停止
 
 | 操作 | コマンド |

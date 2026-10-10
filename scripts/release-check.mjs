@@ -10,7 +10,7 @@ const sourceExtensions = new Set([".ts", ".js", ".mjs", ".mts", ".json", ".md", 
 const specialSources = new Set([".env.example", ".gitignore", ".nvmrc", "LICENSE"]);
 const loopback = new Set(["127.0.0.1", "0.0.0.0", "::", "::1", "::ffff:127.0.0.1"]);
 const publicHosts = new Set(["chatgpt.com", "github.com", "nodejs.org", "www.apple.com", "developer.chrome.com",
-  "support.apple.com", "www.w3.org", "hub.evenrealities.com", "registry.npmjs.org", "www.npmjs.com", "opencollective.com", "tidelift.com"]);
+  "support.apple.com", "www.w3.org", "hub.evenrealities.com", "registry.npmjs.org", "www.npmjs.com", "opencollective.com", "tidelift.com", "tailscale.com"]);
 
 function excludedName(name) {
   return excluded.has(name) || name === ".DS_Store" || name.startsWith(".env") && name !== ".env.example"

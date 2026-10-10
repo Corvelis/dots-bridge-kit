@@ -107,7 +107,7 @@ describe("release privacy boundary", () => {
     writeFileSync(join(dir, "package-lock.json"), JSON.stringify(lock)); expect(() => checkRelease(dir)).toThrow("integrity");
   });
   it("accepts loopback transport, placeholders and public documentation URLs", () => {
-    const dir = fixture("http://127.0.0.1:8799/ ws://localhost:8799/ ws://[::1]:8799/ ws://YOUR_MAC_HOST:8799/ https://chatgpt.com/dots/home https://github.com/example/project");
+    const dir = fixture("http://127.0.0.1:8799/ ws://localhost:8799/ ws://[::1]:8799/ ws://YOUR_MAC_HOST:8799/ https://chatgpt.com/dots/home https://github.com/example/project https://tailscale.com/download https://tailscale.com/docs/how-to/connect-to-devices");
     expect(checkRelease(dir).ok).toBe(true);
   });
   it("allows passive SVG guides and rejects active or external image content", () => {

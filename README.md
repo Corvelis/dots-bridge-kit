@@ -25,7 +25,7 @@ Intel Macではソースからビルドしてください。
 - **macOS 26以降**、Google Chrome、[Node.js 24 LTS](https://nodejs.org/en/download)。音声認識はMacの対応ハードウェア・言語にも依存します。
 - ChatGPTにログインし、利用できるDot。通話にはDot側の電話機能が必要です。
 - Even G2とEven App **2.2.10以降**。アプリの表示言語は日本語です。
-- スマホとMacが通信できるLAN／VPN。外出先で使う場合もMacは起動したままにします。
+- スマホとMacが通信できるLAN／VPN。外出先からはTailscaleなどで接続できます。[外出先での設定](docs/configuration.md#外出先から使うtailscaleなどのvpn)。Macは起動したままにします。
 - 通話を使う場合は [BlackHole 2ch](https://github.com/ExistentialAudio/BlackHole)。音声→テキストだけなら不要です。
 
 ## 日常の操作
