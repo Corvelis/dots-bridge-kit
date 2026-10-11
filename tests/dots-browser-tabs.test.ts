@@ -10,9 +10,9 @@ import { readConfiguredDotUrl } from "../browser/dots-bridge/settings.js";
 
 const dotUrl = "https://chatgpt.com/dots/home";
 function event() {
-  const listeners: Array<(value?: any) => void> = [];
-  return { addListener: (listener: (value?: any) => void) => listeners.push(listener),
-    emit: (value?: any) => listeners.forEach(listener => listener(value)) };
+  const listeners: Array<(...values: any[]) => void> = [];
+  return { addListener: (listener: (...values: any[]) => void) => listeners.push(listener),
+    emit: (...values: any[]) => Promise.all(listeners.map(listener => listener(...values))) };
 }
 function port(tabId: number) {
   return { name: "dots-page", sender: { url: dotUrl, frameId: 0, tab: { id: tabId } },
@@ -23,6 +23,7 @@ function setup(tabs: any[] = [], windows: any[] = []) {
   const native = { onMessage: event(), onDisconnect: event(), postMessage: vi.fn(), disconnect: vi.fn() };
   const chrome = {
     tabs: {
+      onUpdated: event(), onRemoved: event(),
       get: vi.fn(async (id: number) => { const tab = tabs.find(tab => tab.id === id); if (!tab) throw new Error("Closed tab"); return tab; }),
       query: vi.fn(async () => tabs.filter(tab => tab.url === dotUrl)),
       update: vi.fn(async (id: number, changes: any) => ({ ...tabs.find(tab => tab.id === id), ...changes })),
@@ -43,6 +44,69 @@ function setup(tabs: any[] = [], windows: any[] = []) {
 }
 
 describe("Dots normal Chrome tabs", () => {
+  it.each(["navigation", "snapshot", "closed tab", "missed navigation"])("reconnects to the configured Dot after the old owner's %s", async cause => {
+    const tabs = [{ id: 1, windowId: 10, url: dotUrl }, { id: 2, windowId: 10, url: dotUrl }];
+    const t = setup(tabs, [{ id: 10, type: "normal" }]);
+    const replacement = { onMessage: event(), onDisconnect: event(), postMessage: vi.fn(), disconnect: vi.fn() };
+    t.chrome.runtime.connectNative.mockReturnValueOnce(t.native).mockReturnValue(replacement);
+    t.background();
+    const old = port(1); t.chrome.runtime.onConnect.emit(old); old.onMessage.emit({ type: "ready" });
+    await vi.waitFor(() => expect(t.chrome.runtime.connectNative).toHaveBeenCalledTimes(1));
+    // A different tab's navigation and ordinary updates leave the owner alone.
+    t.chrome.tabs.onUpdated.emit(2, { url: "https://chatgpt.com/" });
+    t.chrome.tabs.onUpdated.emit(1, { title: "Dot", url: dotUrl });
+    expect(old.disconnect).not.toHaveBeenCalled();
+    tabs[0].url = "https://chatgpt.com/";
+    if (cause === "navigation") t.chrome.tabs.onUpdated.emit(1, { url: tabs[0].url });
+    if (cause === "snapshot") old.onMessage.emit({ type: "voice.state", snapshot: { state: "unknown", url: tabs[0].url } });
+    if (cause === "closed tab") { tabs.shift(); t.chrome.tabs.onRemoved.emit(1); }
+    const next = port(2); t.chrome.runtime.onConnect.emit(next); next.onMessage.emit({ type: "ready" });
+    await vi.waitFor(() => expect(t.chrome.runtime.connectNative).toHaveBeenCalledTimes(2));
+    expect(old.disconnect).toHaveBeenCalledTimes(1);
+    expect(t.native.disconnect).toHaveBeenCalledTimes(1);
+    expect(t.native.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "voice.state" }));
+    expect(next.disconnect).not.toHaveBeenCalled();
+    // A late disconnect from the old page cannot close the new connection.
+    old.onDisconnect.emit();
+    expect(replacement.disconnect).not.toHaveBeenCalled();
+    replacement.onMessage.emit({ type: "job", id: "new-input", text: "A new input" });
+    await vi.waitFor(() => expect(next.postMessage).toHaveBeenCalledWith({ type: "job", id: "new-input", text: "A new input", url: dotUrl }));
+    expect(old.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "job" }));
+  });
+
+  it("releases a moved owner before opening the configured Dot from the toolbar", async () => {
+    const tabs = [{ id: 1, windowId: 10, url: dotUrl }, { id: 2, windowId: 10, url: dotUrl }];
+    const t = setup(tabs, [{ id: 10, type: "normal" }]);
+    t.background(); const old = port(1);
+    t.chrome.runtime.onConnect.emit(old); old.onMessage.emit({ type: "ready" });
+    await vi.waitFor(() => expect(t.chrome.runtime.connectNative).toHaveBeenCalledTimes(1));
+    tabs[0].url = "https://chatgpt.com/";
+    t.chrome.action.onClicked.emit();
+    await vi.waitFor(() => expect(t.chrome.tabs.update).toHaveBeenCalledWith(2, { active: true }));
+    expect(old.disconnect).toHaveBeenCalledTimes(1);
+    expect(t.native.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["job", "voice.command"])("handles navigation during %s preparation without using a disconnected native port", async type => {
+    const tab = { id: 1, windowId: 10, url: dotUrl };
+    const t = setup([tab], [{ id: 10, type: "normal" }]);
+    t.background(); const page = port(1);
+    t.chrome.runtime.onConnect.emit(page); page.onMessage.emit({ type: "ready" });
+    await vi.waitFor(() => expect(t.chrome.runtime.connectNative).toHaveBeenCalledTimes(1));
+    let resolveTab!: (value: any) => void;
+    t.chrome.tabs.get.mockImplementationOnce(() => new Promise(resolve => { resolveTab = resolve; }));
+    const preparing = t.native.onMessage.emit(type === "job"
+      ? { type, id: "pending", text: "Input" }
+      : { type, id: "pending", action: "start", url: dotUrl });
+    tab.url = "https://chatgpt.com/";
+    t.chrome.tabs.onUpdated.emit(tab.id, { url: tab.url });
+    t.native.postMessage.mockImplementation(() => { throw new Error("Disconnected port"); });
+    resolveTab({ ...tab });
+    await expect(preparing).resolves.toBeDefined();
+    expect(page.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ id: "pending" }));
+    expect(t.chrome.action.setBadgeText).toHaveBeenLastCalledWith({ text: "OFF" });
+  });
+
   it("waits for saved settings and rejects another Dot without claiming or controlling it", async () => {
     const t = setup([{ id: 1, windowId: 10, url: dotUrl }], [{ id: 10, type: "normal" }]);
     let resolveSettings!: (value: any) => void;

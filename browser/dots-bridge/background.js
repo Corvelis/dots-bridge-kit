@@ -15,6 +15,25 @@ function disconnect() {
   const old = native; native = null; activeId = null;
   old?.disconnect();
 }
+function releaseOwner(page) {
+  if (page !== owner) return;
+  owner = null;
+  disconnect();
+  badge("OFF", "#777777");
+  page.disconnect();
+}
+async function discardMovedOwner() {
+  const page = owner;
+  if (!page) return;
+  try { await normalDotTab(chrome, dotUrl, page.sender.tab.id); }
+  catch { releaseOwner(page); }
+}
+chrome.tabs.onUpdated.addListener((tabId, changes) => {
+  if (owner?.sender.tab.id === tabId && typeof changes.url === "string" && changes.url !== dotUrl) releaseOwner(owner);
+});
+chrome.tabs.onRemoved.addListener(tabId => {
+  if (owner?.sender.tab.id === tabId) releaseOwner(owner);
+});
 function connect() {
   if (!owner || native) return;
   const connection = chrome.runtime.connectNative("org.dotsbridgekit.chrome");
@@ -27,7 +46,9 @@ function connect() {
         if (message.url !== dotUrl) throw new Error("Wrong dot call target");
         if (message.action === "start" || message.action === "prepare") await prepareWindow(page);
         if (page === owner && connection === native) page.postMessage(message);
-      } catch (error) { connection.postMessage({ type: "voice.result", id: message.id, error: error.message }); }
+      } catch (error) {
+        if (connection === native) connection.postMessage({ type: "voice.result", id: message.id, error: error.message });
+      }
     } else if (message.type === "job") {
       if (activeId) { disconnect(); return; }
       activeId = message.id;
@@ -37,9 +58,9 @@ function connect() {
         if (page !== owner || connection !== native) return;
         page.postMessage({ ...message, url: dotUrl });
       } catch (error) {
-        connection.postMessage({ type: "failure", id: message.id, reason: error.message, sent: false });
+        if (connection === native) connection.postMessage({ type: "failure", id: message.id, reason: error.message, sent: false });
       }
-      badge("…", "#aa7711");
+      if (connection === native) badge("…", "#aa7711");
     } else if (message.type === "accepted") {
       activeId = null; owner.postMessage(message); badge("ON", "#18834b");
     } else if (message.type === "ready") { owner.postMessage({ type: "watch-ready" }); badge("ON", "#18834b"); }
@@ -66,6 +87,7 @@ chrome.runtime.onConnect.addListener(port => {
     if (!alive) return false;
     if (port.sender.url !== url) { port.postMessage({ type: "inactive" }); port.disconnect(); return false; }
     await normalDotTab(chrome, url, port.sender.tab.id);
+    await discardMovedOwner();
     if (!alive) return false;
     if (owner) throw new Error("Another dot tab owns the bridge");
     owner = port;
@@ -81,6 +103,7 @@ chrome.runtime.onConnect.addListener(port => {
     void initialized.then(accepted => {
       if (!accepted || port !== owner) return;
       if (native && ["voice.state", "voice.result", "voice.diagnostic"].includes(message.type)) {
+        if (message.snapshot && message.snapshot.url !== dotUrl) { releaseOwner(port); return; }
         if (JSON.stringify(message).length <= 8000) native.postMessage(message);
         return;
       }
@@ -110,7 +133,10 @@ chrome.runtime.onConnect.addListener(port => {
   });
   port.onDisconnect.addListener(() => { alive = false; if (owner !== port) return; owner = null; disconnect(); badge("OFF", "#777777"); });
 });
-const openDot = async (focus = false) => openNormalDot(chrome, await loadSettings(), { focus, preferredTabId: owner?.sender.tab.id });
+const openDot = async (focus = false) => {
+  await discardMovedOwner();
+  return openNormalDot(chrome, await loadSettings(), { focus, preferredTabId: owner?.sender.tab.id });
+};
 const openInBackground = () => { void openDot().catch(error => { console.warn(error.message); badge("!", "#aa3333"); }); };
 chrome.runtime.onStartup.addListener(openInBackground);
 chrome.runtime.onInstalled.addListener(openInBackground);
