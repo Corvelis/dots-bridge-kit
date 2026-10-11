@@ -11,7 +11,7 @@ This guide walks through the G2 setup. For a custom client, complete setup steps
 
 Use macOS 26 or newer with supported Apple speech-recognition hardware/language, Chrome, [Node.js 24 LTS](https://nodejs.org/en/download), Even G2 and Even App 2.2.10 or newer. Your account must have access to a Dot; calls also require its phone feature. Keep the Mac awake and on a LAN/VPN reachable from your phone.
 
-Download `dots-bridge-kit-macos-arm64-v0.1.0.zip` for Apple Silicon. It includes compiled bridge/audio helpers and the G2 web app; Xcode is not needed. Node/npm dependencies are installed below. Intel Mac users should build the source ZIP with Xcode Command Line Tools following the [build guide](publishing.md#ソースからビルドする).
+Download `dots-bridge-kit-macos-arm64-v0.1.1.zip` for Apple Silicon. It includes compiled bridge/audio helpers and the G2 web app; Xcode is not needed. Node/npm dependencies are installed below. Intel Mac users should build the source ZIP with Xcode Command Line Tools following the [build guide](publishing.md#ソースからビルドする).
 
 ## Setup
 
@@ -26,7 +26,7 @@ Enter your Dot URL from Chrome and a Mac hostname/IP reachable from the phone, w
 
 **Away from home:** Install [Tailscale](https://tailscale.com/download) on the Mac and phone and connect both to the same account/network. Use the Mac's Tailscale IPv4 address as the setup host, then follow the remaining steps. The phone runs the VPN; G2 connects through Even App. Keep the VPN connected on both devices and the Mac awake with the bridge and Dot running. Before leaving, turn off phone Wi-Fi and check `http://YOUR_MAC_HOST:8799/` over mobile data. If changing an existing LAN setup, stop the bridge, rerun setup, repack/reinstall G2, update the phone endpoint and start the bridge again; the token is preserved. [Detailed connection steps](configuration.md#外出先から使うtailscaleなどのvpn)
 
-2. Run `npm run chrome:install`. In Chrome, open `chrome://extensions`, enable Developer mode, extract `dots-bridge-kit-chrome-v0.1.0.zip`, and load its folder containing **manifest.json**. The setup-generated **build/extension** is identical; load only one copy. Keep your configured Dot open in a normal tab. [Extension ZIP and upgrades](chrome-extension.md#english)
+2. Run `npm run chrome:install`. In Chrome, open `chrome://extensions`, enable Developer mode, extract `dots-bridge-kit-chrome-v0.1.1.zip`, and load its folder containing **manifest.json**. The setup-generated **build/extension** is identical; load only one copy. Keep your configured Dot open in a normal tab. [Extension ZIP and upgrades](chrome-extension.md#english)
 3. Run `npm run services:start`, reload the Dot tab, then run `npm run doctor`. Bridge/extension/call-control/ASR checks should be OK. On the phone, confirm that `http://YOUR_MAC_HOST:8799/` opens; replace YOUR_MAC_HOST with your own setup value.
 4. Run `npm run pack:g2`. Upload `build/dots-phone-g2-0.2.25.ehpk` to your Even Hub project's **Private builds**. In Even App, use **Even Hub → Developer Mode → Me → Apps → Private builds → Install**, as described in the [official guide](https://hub.evenrealities.com/docs/test/private-testing). If the package ID is taken, repack with `npm run pack:g2 -- --package-id org.example.dotsphone`, replacing the example with your own unique ID.
 5. Open Dots Phone G2 and allow its microphone/network permissions. Run `npm run token` in Terminal, paste your token into 「Macへの接続設定」 and tap 「保存して接続」. The endpoint is preconfigured. It should show 「テキスト 接続済み」.

@@ -36,8 +36,8 @@ Macの接続先は1つで、用途ごとにWebSocketのパスを選びます。
 
 | ダウンロードするもの | 用途 |
 | --- | --- |
-| `dots-bridge-kit-macos-arm64-v0.1.0.zip` | Apple Silicon Macで使う。ブリッジ・音声ヘルパー・G2画面はビルド済み |
-| `dots-bridge-kit-chrome-v0.1.0.zip` | 展開してChromeへ読み込む共通拡張。個人用ビルドは不要 |
+| `dots-bridge-kit-macos-arm64-v0.1.1.zip` | Apple Silicon Macで使う。ブリッジ・音声ヘルパー・G2画面はビルド済み |
+| `dots-bridge-kit-chrome-v0.1.1.zip` | 展開してChromeへ読み込む共通拡張。個人用ビルドは不要 |
 | `dots-bridge-kit-source.zip` | コードを変更・ビルドしたい人向け。拡張・ブリッジ・G2のソース一式 |
 | `SHA256SUMS.txt` | ZIPのチェックサム |
 

@@ -1,6 +1,6 @@
 {
   "name": "dots-bridge-kit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A local bridge connecting your Dot to apps and devices through text, speech recognition and voice-call APIs. Includes an Even G2 app.",
   "type": "module",

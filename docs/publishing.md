@@ -28,9 +28,9 @@ npm run release:all
 | 出力 | 配布先・内容 |
 | --- | --- |
 | `build/github/dots-bridge-kit` | GitHubのコード。明示したソース・ドキュメント・画像・設定例・テスト・CI・ライセンス |
-| `build/releases/dots-bridge-kit-chrome-v0.1.0.zip` | Chromeへ読み込める共通拡張。設定はMacから取得 |
+| `build/releases/dots-bridge-kit-chrome-v0.1.1.zip` | Chromeへ読み込める共通拡張。設定はMacから取得 |
 | `build/releases/dots-bridge-kit-source.zip` | 同じソースをZIPで配布 |
-| `build/releases/dots-bridge-kit-macos-arm64-v0.1.0.zip` | Apple Siliconの実行用セット。ビルド済みブリッジ・音声ヘルパー・G2画面・共通Chrome拡張・導入スクリプト |
+| `build/releases/dots-bridge-kit-macos-arm64-v0.1.1.zip` | Apple Siliconの実行用セット。ビルド済みブリッジ・音声ヘルパー・G2画面・共通Chrome拡張・導入スクリプト |
 | `build/releases/SHA256SUMS.txt` | 上のZIPのチェックサム |
 
 Intel Mac上で同じコマンドを実行すると `macos-x64` の実行用セットを作ります。

@@ -7,7 +7,7 @@
 
 ## 1. ダウンロードと自分の設定
 
-Apple Silicon Macでは `dots-bridge-kit-macos-arm64-v0.1.0.zip` をダウンロードして展開します。
+Apple Silicon Macでは `dots-bridge-kit-macos-arm64-v0.1.1.zip` をダウンロードして展開します。
 [Node.js 24 LTS](https://nodejs.org/en/download) のmacOSインストーラーを導入してください。
 展開したフォルダは使い続ける場所へ置きます。セットアップ後に移動すると、Chromeと自動起動の登録が古い場所を参照します。
 
@@ -39,7 +39,7 @@ npm run chrome:install
 ~~~
 
 Chromeで `chrome://extensions` を開き、右上の「デベロッパーモード」をオンにします。
-リリースの `dots-bridge-kit-chrome-v0.1.0.zip` を展開します。「パッケージ化されていない拡張機能を読み込む」で、**manifest.jsonが入った拡張フォルダ**を選びます。
+リリースの `dots-bridge-kit-chrome-v0.1.1.zip` を展開します。「パッケージ化されていない拡張機能を読み込む」で、**manifest.jsonが入った拡張フォルダ**を選びます。
 セットアップが作った **build/extension** も同じ拡張です。どちらか1つだけ読み込んでください。
 設定したDotの通常タブを開いておきます。フォルダの選び方は [Chrome公式手順](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world) でも確認できます。
 

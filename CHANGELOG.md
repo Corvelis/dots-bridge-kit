@@ -1,5 +1,11 @@
 # Changes
 
+## 0.1.1
+
+- Chrome extension 0.2.8 restores reconnection when the connected Dot tab navigates away or closes.
+- Discard stale tab ownership and mismatched voice snapshots instead of blocking new input or repeatedly reconnecting voice.
+- Stop pending input and call commands from using a disconnected native connection.
+
 ## 0.1.0 public release kit
 
 - Configurable Dot URL and Mac host, one public bridge port and one start/stop command.
